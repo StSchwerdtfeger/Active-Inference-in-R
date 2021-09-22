@@ -291,7 +291,7 @@ for(t in 1:n){
     else if (tau == 2) {
       logs = .5*logBs + as.vector(logAo)
     }
-    qs = softmax(logs)   # Eqivalent: qs =  (exp(logs)/sum(exp(logs)))
+    qs = softmax(logs)   # Equivalent: qs =  (exp(logs)/sum(exp(logs)))
     print(qs)}
 }
 
