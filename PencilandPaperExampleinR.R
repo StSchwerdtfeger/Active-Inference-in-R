@@ -9,6 +9,7 @@
 # "A Step-by-Step Tutorial on Active Inference Modelling and its Application 
 # to Empirical Data, by Ryan Smith, Karl J. Friston, Christopher J. Whyte"
 
+# Thanks to Ryan Smith for his quick answer on t and tau!!
 
 
 #####################
@@ -273,7 +274,7 @@ for(t in 1:n){
     
     o[1,] <- o1 # assign to list
     o[2,] <- o2 #      -''-
-    logAo = log(t(A)%*%as.vector(o[[t,tau]])+.01) # if likelihood UP HERE DOESNT CHANGE RESULT?
+    logAo = log(t(A)%*%as.vector(o[[t,tau]])+.01) # has to be up here as well for correct results
     
     if (tau == 1){
       
@@ -281,7 +282,7 @@ for(t in 1:n){
       logBs <- log(t(B)%*%(qs[,])+.01) # future
     }
     else if(tau == 2){
-      logBs <- log(t(B)%*%(qs[,])+.01) # no contribution in future
+      logBs <- log(t(B)%*%(qs[,])+.01) # no contribution from future
     }
     logAo = log(t(A)%*%as.vector(o[[t,tau]])+.01) #likelihood
     if (tau == 1){
