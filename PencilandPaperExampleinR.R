@@ -253,8 +253,8 @@ n = 2
 # Initial approx posterior
 qs= matrix(c(.5,.5))
 
-# Result = all qs for all timesteps and each tau!
-for(t in 1:n){
+# Result = all qs for all timesteps and each tau!   # I will simplify this loop in the future.
+for(t in 1:n){                                      # Just glad it worked out so far.
   for (tau in 1:n){
     o1<- vector("list", 1*2)
     # True observation at t 1
