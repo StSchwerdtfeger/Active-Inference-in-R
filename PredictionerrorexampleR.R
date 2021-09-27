@@ -4,7 +4,7 @@
 #----------------------------------------------------------------------#
 ########################################################################
 
-# R conversion of the Supplementary Code Matlab for: 
+# R conversion of the Supplementary Matlab code for: 
 # "A Step-by-Step Tutorial on Active Inference Modelling and its 
 # Application to Empirical Data", by Ryan Smith, Karl J. Friston, 
 # Christopher J. Whyte
