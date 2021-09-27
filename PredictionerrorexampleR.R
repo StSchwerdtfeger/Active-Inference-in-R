@@ -12,8 +12,10 @@
 # Following page 44.
 
 # Softmax function for matrices (!) from https://gist.github.com/bnicenboim/6fdf8f64a5840b74ae3b279e2a56dd07
-# (Different function than in the "Pencil and Paper" script)
-# The matlab script uses exp(x)/sum(exp(x)) and spm_softmax(x,k).
+# This calculates a softmax of the columns of a matrix,
+# not the whole matrix. (Different function than in the "Pencil and Paper" script!)
+# The matlab script uses exp(x)/sum(exp(x)) and spm_softmax(x,k). 
+# This function I guess? https://github.com/spm/spm8/blob/master/spm_softmax.m 
 
 softmax <- function(probs){
   if(is.null(dim(probs))) probs <- matrix(probs,ncol= length(probs))
