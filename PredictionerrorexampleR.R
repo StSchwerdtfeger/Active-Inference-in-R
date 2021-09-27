@@ -71,8 +71,8 @@ sPItauplus1 = c(.5, .5)
 # Depolarisation term (initial value)
 vO = log(sPItau)
   
-# Normalize Bt2 vis softmax function. Does not need to be transposed in this
-# code version. 
+# Normalize Bt2 vis softmax function. Does not need to be transposed 
+# different to the matlab code.  
 Bt2cross = softmax(Bt2)
 Bt2cross
 
