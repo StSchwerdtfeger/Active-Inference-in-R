@@ -2,7 +2,7 @@
 
  R conversion of matlab code from the the supplemantary material
  of the paper "A Tutorial on Active Inference Modelling and its Application to Empirical Data" 
- by Ryan Smith and Christopher J. Whyte.
+ by Ryan Smith, Karl Friston and Christopher J. Whyte.
 
  Link to paper: https://psyarxiv.com/b4jm6/
  
