@@ -381,22 +381,27 @@ for (t_tau in 1:ncol(time_tau)){
     }
 }
 
-xnplot
 
-# Plotting ERP - still not working out properly... 
+# Plotting ERP - still not working right, but got a little further:
 grad1=gradient(xnplot[,1])
 grad1
+grad1=rbind(c(0),as.matrix(grad1)) # add 0 to starting value:
 
 grad2=gradient(xnplot[,2])
 grad2
+grad2=rbind(c(0),as.matrix(grad2)) #        --   "   --
+
 
 grad3=gradient(xnplot[,3])
 grad3
+grad3=rbind(c(0),as.matrix(grad3))
 
 grad4=gradient(xnplot[,4])
 grad4
+grad4=rbind(c(0),as.matrix(grad4))
 
-plot(grad4, ylim=c(-0.1,0.1), type = "l")
+
+plot(grad4, ylim=c(-0.5,0.5), type = "l")
 lines(grad3)
 lines(grad2)
 lines(grad1)
