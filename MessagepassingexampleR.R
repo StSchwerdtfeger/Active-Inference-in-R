@@ -127,7 +127,7 @@ for (Ni in 1:NumIterations){
     # For each edge (hidden state) - STEP 7 
     for (tau in 1:Timepoints){
       # Choose an edge
-      q = log(qs[tau]+z)   # evtl. q[tau]
+      q = log(qs[tau]+z)   
       
       # compute MEssage sent by D and B (STEP 4) using the posterior
       # computed in 6B
