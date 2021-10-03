@@ -4,7 +4,7 @@
 #-------------------------------#
 #################################
 
-# CONVERSION of matlba code Message_passing_example.m, including commentaries.
+# CONVERSION of MATlab code Message_passing_example.m, including commentaries.
 
 # Supplementary Code for: A Tutorial on Active Inference 
 # Modelling and its Application to Empirical Data by Ryan Smith 
