@@ -8,7 +8,7 @@
  
  Code also available here (Ryan Smith's github):  https://github.com/rssmith33/Active-Inference-Tutorial-Scripts
 
- Conversion by Steffen Schwedtfeger
+ Conversion to R by Steffen Schwerdtfeger
 
  I am still new to all of this. Feedback or contributions always welcome.
 
