@@ -6,7 +6,7 @@
 
  Link to paper: https://psyarxiv.com/b4jm6/
  
- Code also available here (Ryan Smith's github):  https://github.com/rssmith33/Active-Inference-Tutorial-Scripts
+ Original Matlab code also available here (Ryan Smith's github):  https://github.com/rssmith33/Active-Inference-Tutorial-Scripts
 
  Conversion to R by Steffen Schwerdtfeger
 
