@@ -289,7 +289,7 @@ for (t in 1:Timesteps){
                                         # Message 1)
            } 
              # Likelihood Message 3
-            lnAo = log((t(A)%*%as.vector(o[[t,tau]]))+z)  # evtl. as.vector(o...) + multiple places in the loop as below!!
+            lnAo = log((t(A)%*%as.vector(o[[t,tau]]))+z)  # as.vector(o...) + multiple places in the loop as below!!
     
              # calculate state prediction error: equation 24
             if (tau == 1){
