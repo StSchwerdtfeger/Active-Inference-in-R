@@ -363,7 +363,7 @@ ERPplot[[1,3]]= grad1grad3
 
 grad1grad4=gradient(grad1preMX[4,])
 grad1grad4
-ERPplot[[1,4]]= grad1grad3
+ERPplot[[1,4]]= grad1grad4
 
 # Grad 2
 grad2pre = rbind(xn[,,2])
