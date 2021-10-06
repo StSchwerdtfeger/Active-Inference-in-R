@@ -11,7 +11,14 @@
  Conversion to R by Steffen Schwerdtfeger
 
  I am still new to all of this. Feedback or contributions always welcome.
+ 
+ 
+# CONVERTED SO FAR:
 
+- Pencil and Paper Example
+- Prediction Error Example
+- Message Passing Example 
 
 # Current struggle: 
- - get plot running for Figure 3 and 1 of Example 2 in the script for message passing example. 
+ - [[SOLVED]]get plot running for Figure 3 and 1 of Example 2 in the script for message passing example. 
+      - the function spm_cat could be translated into R in the future - or some equivalent code written for it... 
