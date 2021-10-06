@@ -17,7 +17,8 @@
 
 - Pencil and Paper Example
 - Prediction Error Example
-- Message Passing Example 
+- Message Passing Example
+- EFE Precision Updating Example 
 
 # Current struggle: 
  - [[SOLVED]]get plot running for Figure 3 and 1 of Example 2 in the script for message passing example. 
