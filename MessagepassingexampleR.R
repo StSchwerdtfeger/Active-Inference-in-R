@@ -48,7 +48,7 @@
 #      converges to some acceptably low value (i.e., resulting in stable 
 #      posterior beliefs for all edges). 
 
-library(pracma) # for grad(), numerical gradiant Matlab-Style
+library(pracma) # for gradient(), numerical gradiant Matlab-Style
 
 
 ##########################################################
@@ -138,7 +138,7 @@ for (Ni in 1:NumIterations){
       else if (tau == Timepoints){
         lnBs= log(B%*%qs[]+z)
       }
-      lnAo = log((t(A)%*%as.vector(o[[tau]]))+z)  # as.vector(o...) 
+      lnAo = log((t(A)%*%as.vector(o[[tau]]))+z)  # Likelihood (as.vector(o...)) 
       
       # STEPS 5-6 (Pass messages and update the posterior)
       # Since all terms are in log space, this is addition instead of
@@ -250,9 +250,6 @@ for (t in 1:Timesteps){
   
       for (Ni in 1:NumIterations){   # STEP 8 loop of VMP
           
-          # Likelihood
-          #lnAo = log((t(A)%*%as.vector(o[[t,tau]]))+z)  # as.vector(o...) + multiple places in the loop necessary!!
-  
           for (tau in 1:Timesteps){ # STEP 7 loop of VMP
             # fix observations sequentially (STEP 2) [using a list of lists]
             # Each tau for Timestep1
@@ -289,7 +286,7 @@ for (t in 1:Timesteps){
                                         # Message 1)
            } 
              # Likelihood Message 3
-            lnAo = log((t(A)%*%as.vector(o[[t,tau]]))+z)  # as.vector(o...) + multiple places in the loop as below!!
+            lnAo = log((t(A)%*%as.vector(o[[t,tau]]))+z)  # LIKELIHOOD (as.vector(o...)
     
              # calculate state prediction error: equation 24
             if (tau == 1){
@@ -320,8 +317,96 @@ qs2
 # [1,] 0.98780474
 # [2,] 0.01219526
 
-# xn of each iteration, for each t and each tau. 
 xn
+
+
+##################################
+# ERP - Event Related Potentials #
+##################################
+
+# Getting Data in Form. In the Matlab code this is, e.g., done
+# via implemented functions like spm_cat... # https://github.com/neurodebian/spm12/blob/master/spm_cat.m
+# spm_cat could maybe also be converted into R, making the below much easier...
+
+
+library(pracma) # library for gradient(), calculates numerical gradient 
+                # in Matlab-Style. gradient() for central difference!
+
+# Example:
+x= 1:10
+# 1 2 3 4 5 6 7 8 9 10
+gradient(x)
+# 1 1 1 1 1 1 1 1 1 1 
+
+# Set up List for ERP plot:
+ERPplot=vector("list", 2*4)
+dim(ERPplot) = matrix(c(2,4))
+ERPplot
+
+# Grad 1
+grad1pre = rbind(xn[,,1])
+grad1predf <- data.frame(matrix(unlist(t(grad1pre)), nrow=4, ncol=16,byrow=FALSE),stringsAsFactors = FALSE)
+grad1preMX=as.matrix(grad1predf)
+grad1preMX
+
+grad1grad1=gradient(grad1preMX[1,])
+grad1grad1
+ERPplot[[1,1]]= grad1grad1 # Add to ERP list
+
+grad1grad2=gradient(grad1preMX[2,])
+grad1grad2
+ERPplot[[1,2]]= grad1grad2
+
+grad1grad3=gradient(grad1preMX[3,])
+grad1grad3
+ERPplot[[1,3]]= grad1grad3
+
+grad1grad4=gradient(grad1preMX[4,])
+grad1grad4
+ERPplot[[1,4]]= grad1grad3
+
+# Grad 2
+grad2pre = rbind(xn[,,2])
+grad2predf <- data.frame(matrix(unlist(t(grad2pre)), nrow=4, ncol=16,byrow=FALSE),stringsAsFactors = FALSE)
+grad2preMX=as.matrix(grad2predf)
+grad2preMX
+
+grad2grad1=gradient(grad2preMX[1,])
+grad2grad1
+ERPplot[[2,1]] = grad2grad1 # add to list
+  
+grad2grad2=gradient(grad2preMX[2,])
+grad2grad2
+ERPplot[[2,2]] = grad2grad2 
+
+grad2grad3=gradient(grad2preMX[3,])
+grad2grad3
+ERPplot[[2,3]] = grad2grad3 
+
+grad2grad4=gradient(grad2preMX[4,])
+grad2grad4
+ERPplot[[2,4]] = grad2grad4 
+
+# ERPplot as data.frame, in order to ADD ZERO value!
+ERP =  data.frame(matrix(unlist(ERPplot), 
+                                    nrow=32, 
+                                    ncol=4,
+                                    byrow=FALSE),
+                             stringsAsFactors = FALSE)
+
+ERPplusZERO = rbind(c(0,0,0,0), ERP) # Add Zero!
+ERPplusZERO  
+
+# FINALLY plot ERP:
+
+plot(ERPplusZERO[,1], type = "l", col = "green",
+     ylim = c(-.05,.05), # Set dimension y axis 0 to 1
+     xlab = "Message passing iterations", ylab = "Response") # Name labes
+lines(ERPplusZERO[,2], col="blue")     # add the other columns of xnplot
+lines(ERPplusZERO[,3], col="red")
+lines(ERPplusZERO[,4], col="orange")
+
+
 
 
 ###################################
@@ -330,7 +415,7 @@ xn
 
 
 # Note: the Matlab code uses functions to transform xn into
-# "firing_rate". A different approach to matlab is used here.
+# "firing_rate". A different approach as to Matlab is used here.
 
 # Adding prior to starting values:
 addD2 = vector("list", 1*2*1)
@@ -340,13 +425,14 @@ addD2[[1,2,1]] <- c(.5,.5)
 addD2
 
 # Use rbind to place D up front of [,,1] which results in a new list [x,y]
-xnplotpre = rbind(addD2[,,1], xn[,,1])
-xnplotpre[1,2]
+xnplotpre = rbind(addD2[,,1], xn[,,1]) 
+xnplotpre
+
 # Use rbind to combine lists
 xnplotpre2 = rbind(xnplotpre, xn[,,2])
 xnplotpre2
 
-# Transform upper list into a dataframe. Not that the list neeeds
+# Transform upper list into a dataframe. Note that the list needs
 # to be transposed for this via t(a). This results in a dataframe
 # with a dim of 17*4
 xnplotpredf <- data.frame(matrix(unlist(t(xnplotpre2)), nrow=4, ncol=33,byrow=FALSE),stringsAsFactors = FALSE)
@@ -357,58 +443,39 @@ xnplot
 plot(xnplot[,1], type = "l", col = "green",
      ylim = c(0,1), # Set dimension y axis 0 to 1
      xlab = "Message passing iterations", ylab = "Firing rates") # Name labes
-lines(xnplot[,2], col="blue")     # add the other columns of qsPLOT
+lines(xnplot[,2], col="blue")     # add the other columns of xnplot
 lines(xnplot[,3], col="red")
 lines(xnplot[,4], col="yellow")
 
 
-library(pracma) # for gradient(), numerical gradiant Matlab-Style
 
-num_states = 2
-num_epochs = 2
-time_tau = matrix(c(1, 2, 1, 2,
-                    1, 1, 2, 2),
-                  ncol =4,
-                  nrow=2,
-                  byrow=TRUE) 
-
-# Sort of, but not the right function yet...
-for (t_tau in 1:ncol(time_tau)){
-    for (epoch in 1:num_epochs){
-    # firing rate 
-     firing_rate[] = unlist(xn)
-      ERP = gradient(firing_rate)
-    }
-}
+#########################
+# Plotting Firing rates #
+#########################
 
 
-# Plotting ERP - still not working right, but got a little further:
-grad1=gradient(xnplot[,1])
-grad1
-grad1=rbind(c(0),as.matrix(grad1)) # add 0 to starting value:
+library(matlab) # for imagesc() 
 
-grad2=gradient(xnplot[,2])
-grad2
-grad2=rbind(c(0),as.matrix(grad2)) #        --   "   --
+firepre= rbind(xn[,,1], xn[,,2])
+firepre
+# Add prior D:
+prior = vector("list", 1*2)
+dim(prior) = matrix(c(1,2))
+priorD = matrix(c(.5,.5), ncol=1, nrow=2, byrow=TRUE)
+prior[[1,1]] = priorD
+prior[[1,2]] = priorD
+prior
 
+firepre2=rbind(prior, firepre)
+firepre2
 
-grad3=gradient(xnplot[,3])
-grad3
-grad3=rbind(c(0),as.matrix(grad3))
+firepre3=rbind(firepre2)
+firepre3
 
-grad4=gradient(xnplot[,4])
-grad4
-grad4=rbind(c(0),as.matrix(grad4))
+# Convert to df to make data plotable:
+fireplot <- data.frame(matrix(unlist(t(firepre3)), nrow=4, ncol=33,byrow=FALSE),stringsAsFactors = FALSE)
+fireplot
 
-
-plot(grad4, ylim=c(-0.5,0.5), type = "l")
-lines(grad3)
-lines(grad2)
-lines(grad1)
-
-# Firing rates:
-image((64*as.matrix(xnplot)), col = grey.colors(256))
-
-
-
+# FINALLY: Plot fire rate!
+imagesc(1-as.matrix(fireplot), col = grey.colors(256))
 
