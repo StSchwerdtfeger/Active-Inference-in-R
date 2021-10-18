@@ -1,6 +1,6 @@
 # Active-Inference-in-R
 
- R conversion of matlab code from the the supplemantary material
+ R conversion of matlab code from the supplemantary material
  of the paper "A Tutorial on Active Inference Modelling and its Application to Empirical Data" 
  by Ryan Smith, Karl Friston and Christopher J. Whyte.
 
