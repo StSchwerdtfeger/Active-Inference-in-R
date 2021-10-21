@@ -23,3 +23,10 @@
 # Current struggle: 
  - [[SOLVED]]get plot running for Figure 3 and 1 of Example 2 in the script for message passing example. 
       - the function spm_cat could be translated into R in the future - or some equivalent code written for it... 
+
+# Issues:
+- the message passing example and EFE conflicts with each other. Clear environment seems not to be enough, so restarting the 
+  session might be necessary for correct results
+
+# Next:
+- Simpl. Simulation script. Around 75% converted so far.
