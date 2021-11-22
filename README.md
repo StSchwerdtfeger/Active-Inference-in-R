@@ -29,4 +29,5 @@
   session might be necessary for correct results
 
 # Next:
-- Simpl. Simulation script. Around 75% converted so far.
+- Simpl. Simulation script. Around 85% converted so far. Got stuck with the functions smp_cross + G_epistemic_value but will 
+  get back to it soon again, as I nearly solved it... 
