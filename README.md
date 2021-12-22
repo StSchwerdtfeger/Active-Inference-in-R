@@ -29,5 +29,8 @@
   session might be necessary for correct results
 
 # Next:
-- Simpl. Simulation script. Around 85% converted so far. Got stuck with the functions smp_cross + G_epistemic_value but will 
-  get back to it soon again, as I nearly solved it... 
+- Simpl. Simulation script. Around 87,5% converted so far. I uploaded the incomplete script. I think I really got far, and
+  learned a lot from doing this. Currently working on the md_dot function, but I am busy until end of January and would like 
+  to finish this together with other people and focus more on playing around with the actual matlab scripts. 
+  The R script is in general very slow and alot of things could be optimized, probably by using functionals from the apply family
+  instead of loops...
