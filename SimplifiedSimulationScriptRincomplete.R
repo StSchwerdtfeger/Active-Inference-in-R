@@ -713,7 +713,7 @@ beta = 1 # By default this is set to 1, but try increasing its value
 alpha = 32 # fairly low randomness in action selection
 
 
-## Define POMDP Structure
+## Define POMDP Structure # Maybe not necessary in R
 #==========================================================================
   
 mdp.T = Time                 # Number of time steps
@@ -1056,25 +1056,20 @@ G = list()
 ### Lets go! Message passing and policy selection 
 #--------------------------------------------------------------------------
 
+# Execute the following to get the loop running in its current state
 chosen_actionTEST = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
 
-
-# IT HAS TO BE TURNED AROUND mit Ni...
+# Execute the short nested loop to reset state_posterior
 state_posterior = vector("list", NumFactors*NumPolicies)
 dim(state_posterior) = matrix(c(NumFactors,NumPolicies))
-
+#Reset state posterior:
 for (policy in 1:NumPolicies){
   for (factor in 1:NumFactors){
     NumStates[[factor,1]] = length(D[[factor,1]]) # number of states in each hidden state factor
     state_posterior[[factor,policy]] = matrix(1,NumStates[[factor]],Time,policy)/NumStates[[factor,1]]
   }  
 } 
-state_posterior1=state_posterior
-Gintermediate
-G
 
-
-Fintermediate
 
 for (t in 1:Time){  # loop over time points
   
