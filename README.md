@@ -33,6 +33,7 @@
   learned a lot from doing this. Currently working on the md_dot function, but I am busy until end of January and would like 
   to finish this together with other people and focus more on playing around with the actual matlab scripts. 
   The R script is in general very slow and alot of things could be optimized, probably by using functionals from the apply family
-  instead of loops...
+  instead of loops... Other things are concerning functions that could be fit together (spm_cross1 and 2). I was mostly interested 
+  to get the code runnoing, i.e. creating equivalent results to the matlab code. 
 - Information theory for active inference tutorial. I want to put together all the code and tutorials on e.g., mutual information,
   Jenses inequality etc. that I found for R so far. 
