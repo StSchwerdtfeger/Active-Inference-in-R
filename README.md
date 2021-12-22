@@ -34,3 +34,5 @@
   to finish this together with other people and focus more on playing around with the actual matlab scripts. 
   The R script is in general very slow and alot of things could be optimized, probably by using functionals from the apply family
   instead of loops...
+- Information theory for active inference tutorial. I want to put together all the code and tutorials on e.g., mutual information,
+  Jenses inequality etc. that I found for R so far. 
