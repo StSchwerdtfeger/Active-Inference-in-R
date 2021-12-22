@@ -9,6 +9,8 @@
 
 # By: Ryan Smith, Karl J. Friston, Christopher J. Whyte
 
+############## Converted by Steffen Schwerdtfeger (incomplete so far!)
+
 library(pracma)  # needed?
 library(rlist)   # for list.append() function NEEDED?
 library(imager)  # for squeeze()
