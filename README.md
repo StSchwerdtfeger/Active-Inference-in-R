@@ -44,7 +44,7 @@
   matlab functions are oft just equipped with the basic input possibilities, so other functions had to be found. E.g., I did not find a 
   reasonable solution to cover bsxfun... I will write a detailed status report on remaining problems in the near future.
   
-  ##Roughly missing so far: 
+  ''Roughly missing so far:'' 
   Line 351-516 of the big nested loop, the respective functions that are needed for the missing part of the loop, as well as all the spm 
   plotting functions that are used in the script - most of rest is done, just needs some cosmetics, to make it run faster.
   
