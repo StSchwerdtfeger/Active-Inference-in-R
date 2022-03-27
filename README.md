@@ -37,7 +37,7 @@
   instead of loops... Other things are concerning functions that could be fit together (spm_cross1 and 2). I was mostly interested 
   to get the code runnoing, i.e. creating equivalent results to the matlab code. 
   
-  UPDATE: Note that you can run the script up to the current point. The object chosen_action has been altered to make the loop do so. 
+  UPDATE: Note that you can run the script up to the current point. The object chosen_action (used chosen_actionTEST) has been altered to make the loop do so. 
   This of course just delivers abstract results, but it can be compared with a in parallel prepared matlab script. This helped me
   to fully understand what the results of some of the parts are. Some problems that I have encountered were hard to track, as it sometimes
   just involved the class() of an object that was changed by some function (from packages such as pracma). Packages in R that deliver 
