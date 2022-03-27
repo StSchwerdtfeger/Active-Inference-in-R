@@ -36,11 +36,18 @@
   The R script is in general very slow and alot of things could be optimized, probably by using functionals from the apply family
   instead of loops... Other things are concerning functions that could be fit together (spm_cross1 and 2). I was mostly interested 
   to get the code runnoing, i.e. creating equivalent results to the matlab code. 
+  
   UPDATE: Note that you can run the script up to the current point. The object chosen_action has been altered to make the loop do so. 
   This of course just delivers abstract results, but it can be compared with a in parallel prepared matlab script. This helped me
   to fully understand what the results of some of the parts are. Some problems that I have encountered were hard to track, as it sometimes
   just involved the class() of an object that was changed by some function (from packages such as pracma). Packages in R that deliver 
   matlab functions are oft just equipped with the basic input possibilities, so other functions had to be found. E.g., I did not find a 
   reasonable solution to cover bsxfun... I will write a detailed status report on remaining problems in the near future.
+  
+  Roughly missing so far: 
+  Line 351-516 of the big nested loop, the respective functions that are needed for the missing part of the loop, as well as all the spm 
+  plotting functions that are used in the script - most of rest is done, just needs some cosmetics, to make it run faster.
+  
+  
 - Information theory for active inference tutorial. I want to put together all the code and tutorials on e.g., mutual information,
   Jensen's inequality etc. that I found for R so far. 
