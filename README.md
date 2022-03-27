@@ -44,10 +44,11 @@
   matlab functions are oft just equipped with the basic input possibilities, so other functions had to be found. E.g., I did not find a 
   reasonable solution to cover bsxfun... I will write a detailed status report on remaining problems in the near future.
   
+- Information theory for active inference tutorial. I want to put together all the code and tutorials on e.g., mutual information,
+  Jensen's inequality etc. that I found for R so far. 
+  
 # Roughly missing in simp. sim. script so far: 
   Line 351-516 of the big nested loop, the respective functions that are needed for the missing part of the loop, as well as all the spm 
   plotting functions that are used in the script - most of rest is done, just needs some cosmetics, to make it run faster.
   
-  
-- Information theory for active inference tutorial. I want to put together all the code and tutorials on e.g., mutual information,
-  Jensen's inequality etc. that I found for R so far. 
+ 
