@@ -50,8 +50,51 @@
 #      converges to some acceptably low value (i.e., resulting in stable 
 #      posterior beliefs for all edges). 
 
-library(pracma) # for gradient(), numerical gradiant Matlab-Style
+##################
+# Functions in R #
+##################
 
+library(matlab) # Used for imagesc() 
+
+# Either use pracma package for gradient() or Matlab replication
+# of gradient(f) for 1 dimensional numerical gradient.
+
+# library(pracma) # for gradient(), numerical gradiant Matlab-Style
+
+#  Replication of the gradient function Matlab-Style
+gradient = function (x) {
+  step = length(x)
+  upLim  = step-1 # needed for differences on interior points
+  
+  # List for result
+  result = vector("list",1*length(x))
+  dim(result) = c(1,length(x))
+  for (i in 1:step){
+    if (i == 1){
+      result[1] = (x[1+1]-x[1])/1  # Take forward differences on left... 
+    }
+    if (i == step){                # ....... and right edges.
+      result[i] = (x[step]-x[step-1])/1
+    }
+    for (i in 2:upLim) { # needed for differences on interior points
+      result[i] = (x[i+1]-x[i-1])/2
+    }
+  }
+  # Print
+  print(result)
+} # END of function
+
+# Softmax function
+softmax <- function(par){             # THANKS TO: https://rpubs.com/FJRubio/softmax
+  n.par <- length(par)                # equivalent: exp(result)/sum(exp(result))
+  par1 <- sort(par, decreasing = TRUE)
+  Lk <- par1[1]
+  for (k in 1:(n.par-1)) {
+    Lk <- max(par1[k+1], Lk) + log1p(exp(-abs(par1[k+1] - Lk))) 
+  }
+  val <- exp(par - Lk)
+  return(val)
+} # End of function
 
 ##########################################################
 # Example 1: Fixed observation and message passing steps #
@@ -66,18 +109,6 @@ library(pracma) # for gradient(), numerical gradiant Matlab-Style
 
 # Note that some steps (7 and 8) appear out of order when they involve loops that
 # repeat earlier steps
-
-# Softmax function
-softmax <- function(par){             # THANKS TO: https://rpubs.com/FJRubio/softmax
-  n.par <- length(par)                # equivalent: exp(result)/sum(exp(result))
-  par1 <- sort(par, decreasing = TRUE)
-  Lk <- par1[1]
-  for (k in 1:(n.par-1)) {
-    Lk <- max(par1[k+1], Lk) + log1p(exp(-abs(par1[k+1] - Lk))) 
-  }
-  val <- exp(par - Lk)
-  return(val)
-}
 
 # Specify generative model and initialize variables
 
@@ -350,9 +381,9 @@ xn
 # Getting Data in Form. In the Matlab code this is, e.g., done
 # via implemented functions like spm_cat... # https://github.com/neurodebian/spm12/blob/master/spm_cat.m
 
-library(pracma) # library for gradient(), calculates numerical gradient 
-                # in Matlab-Style. gradient() for central difference!
-
+# library(pracma) # library for gradient(), calculates numerical gradient 
+                  # in Matlab-Style. gradient() for central difference!
+# Or just use upper replication of Matlab style 1D numerical gradient.
 
 # Example:
 x= 1:10
