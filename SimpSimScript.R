@@ -1,0 +1,683 @@
+#####################################
+#-----------------------------------#
+# Simplified Simulation Script in R #
+#-----------------------------------#
+#####################################
+
+# Supplementary Code for: A Step-by-Step Tutorial on Active Inference 
+# Modelling and its Application to Empirical Data
+
+# By: Ryan Smith, Karl J. Friston, Christopher J. Whyte
+
+# CONVERSION by Steffen Schwerdtfeger
+
+# This code simulates a single trial of the explore-exploit task introduced 
+# in the active inference tutorial using a stripped down version of the 
+# modelinversion scheme implemented in the spm_MDP_VB_X.m script. 
+
+# Note that this implementation uses the marginal message passing scheme
+# described in (Parr et al., 2019), and will return very slightly 
+# (negligably) different values than the spm_MDP_VB_X.m script in 
+# simulation results.
+
+# Parr, T., Markovic, D., Kiebel, S., & Friston, K. J. (2019). Neuronal 
+# message passing using Mean-field, Bethe, and Marginal approximations. 
+# Scientific Reports, 9, 1889.
+
+
+#############
+# Functions # 
+#############
+
+# Reg. Softmax function
+softmax <- function(par){             # THANKS TO: https://rpubs.com/FJRubio/softmax
+  n.par <- length(par)                # EQUIVALENT: exp(result)/sum(exp(result))
+  par1 <- sort(par, decreasing = TRUE)
+  Lk <- par1[1]
+  for (k in 1:(n.par-1)) {
+    Lk <- max(par1[k+1], Lk) + log1p(exp(-abs(par1[k+1] - Lk))) 
+  }
+  val <- exp(par - Lk)
+  return(val)
+}
+
+# Alternative Softmax function, columnwise:
+softmaxCOL <- function(probs){
+  if(is.null(dim(probs))) probs <- matrix(probs,ncol= length(probs))
+  exp(probs)/apply(probs,1, function(x) sum(exp(x)))
+}
+
+# natural log that replaces zero values with very small values for 
+# numerical reasons (as log(0) is not defined).
+nat_log = function (x) {
+  x = log(x+exp(-16))
+}
+
+# Replication of the gradient function Matlab-Style
+# for calcualting the 1D numerical gradient.  
+# Alternative use function with same name via library("pracma")
+gradient_test = function (x) {
+  step = length(x)
+  upLim  = step-1 # needed for differences on interior points
+  
+  # List for result
+  result = vector("list",1*length(x))
+  dim(result) = c(1,length(x))
+  for (i in 1:step){
+    if (i == 1){
+      result[1] = (x[1+1]-x[1])/1  # Take forward differences on left... 
+    }
+    if (i == step){                # ....... and right edges.
+      result[i] = (x[step]-x[step-1])/1
+    }
+    for (i in 2:upLim) { # needed for differences on interior points
+      result[i] = (x[i+1]-x[i-1])/2
+    }
+  }
+  # Print
+  print(result)
+} # END of function
+
+
+#######################
+# Simulation Settings #
+#######################
+
+# To simulate the task when prior beliefs (d) are separated from the 
+# generative process, set the 'Gen_model' variable directly
+# below to 1. To do so for priors (d), likelihoods (a), and habits (e), 
+# set the 'Gen_model' variable to 2:
+
+Gen_model = 1 # as in the main tutorial code, many parameters 
+              # can be adjusted in the model setup, within the 
+              # explore_exploit_model function [[starting on line 810]]
+              # (Matlab code). This includes, among others (similar to 
+              # in the main tutorial script):
+
+# prior beliefs about context (d): alter line 876
+# beliefs about hint accuracy in the likelihood (a): alter lines 996-998
+# to adjust habits (e), alter line 1155
+
+## Set up POMDP model structure
+#=====================================================================
+
+# Please note that the main tutorial script ('Step_by_Step_AI_Guide.m') 
+# has more thorough descriptions of how to specify this generative 
+# model and the other parameters that might be included. Below we 
+# only describe the elements used to specify this specific model. 
+# Also, unlike the main tutorial script which focuses on learning 
+# initial state priors (d), this version also enables habits (priors
+# over policies; e) and separation of the generative process from the 
+# generative model for the likelihood function (a).
+
+############################
+# Specify Generative Model #
+############################
+
+# START OF FUNCTION
+#####%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#MDP = explore_exploit_model(Gen_model)
+
+# Model specification is reproduced at the bottom of this script 
+# (starting on line 810), but see main tutorial script for more 
+# complete walk-through
+
+
+# Number of time points or 'epochs' within a trial: T
+# =========================================================================
+
+# Here, we specify 3 time points (T), in which the agent 1) starts 
+# in a 'Start' state, 2) first moves to either a 'Hint' state or a 
+# 'Choose Left' or 'Choose Right' slot machine state, and 3) either 
+# moves from the Hint state to one of the choice states or moves from
+# one of the choice states back to the Start state.
+
+Time = 3
+
+# Priors about initial states: D and d
+# =========================================================================
+
+#--------------------------------------------------------------------------
+# Specify prior probabilities about initial states in the generative 
+# process (D)
+# Note: By default, these will also be the priors for the generative 
+# model
+#--------------------------------------------------------------------------
+
+# Setup vector list for D  
+D = c(list())
+
+# For the 'context' state factor, we can specify that the 'left better' 
+# context (i.e., where the left slot machine is more likely to win)
+# is the true context:
+
+# matrix(c('left better','right better'))
+D[[1]] = matrix(c(1, 0))  
+
+# For the 'behavior' state factor, we can specify that the agent 
+# always begins a trial in the 'start' state (i.e., before choosing
+# to either pick a slot machine or first ask for a hint:
+
+# matrix(c('start','hint','choose-left','choose-right'))
+D[[2]] = matrix(c(1, 0, 0, 0))
+
+#--------------------------------------------------------------------------
+# Specify prior beliefs about initial states in the generative model 
+# (d) Note: This is optional, and will simulate learning priors over 
+# states if specified.
+#--------------------------------------------------------------------------
+
+# Note that these are technically what are called 'Dirichlet 
+# concentration paramaters', which need not take on values between
+# 0 and 1. These values are added to after each trial, based on 
+# posterior beliefs about initial states. For example, if the agent
+# believed at the end of trial 1 that it was in the 'left better' 
+# context, then d{1} on trial 2 would be d{1} = [1.5 0.5]' (although
+# how large the increase in value is after each trial depends on a 
+# learning rate). In general, higher values indicate more confidence
+# in one's beliefs about initial states, and entail that beliefs will
+# change more slowly (e.g., the shape of the distribution encoded by 
+# d{1} = [25 25]' will change much more slowly than the shape of the 
+# distribution encoded by d{1} = [.5 0.5]' with each new observation).
+
+# Setup vector list for d
+d = c(list())
+
+# For context beliefs, we can specify that the agent starts out believing 
+# that both contexts are equally likely, but with somewhat low confidence 
+# in these beliefs:
+
+# matrix(c('left better','right better'))
+d[[1]] = matrix(c(.25,.25)) 
+
+# For behavior beliefs, we can specify that the agent expects with 
+# certainty that it will begin a trial in the 'start' state:
+
+# matrix(c('start','hint','choose-left','choose-right'))
+d[[2]] = matrix(c(1, 0, 0, 0))
+
+
+# State-outcome mappings and beliefs: A and a
+#=========================================================================
+
+#--------------------------------------------------------------------------
+# Specify the probabilities of outcomes given each state in the 
+# generative process (A)
+# This includes one matrix per outcome modality
+# Note: By default, these will also be the beliefs in the generative 
+# model
+#--------------------------------------------------------------------------
+
+# First we specify the mapping from states to observed hints (outcome
+# modality 1). Here, the rows correspond to observations, the columns
+# correspond to the first state factor (context), and the third 
+# dimension corresponds to behavior. Each column is a probability 
+# distribution that must sum to 1.
+
+# Setup a vector list:
+A = c(list())
+
+# We start by specifying that both contexts generate the 'No Hint'
+# observation across all behavior states:
+
+## number of states in each state factor (2 and 4)
+Ns = matrix(c(length(D[[1]]), length(D[[2]])))      
+Ns
+
+### A_bhav / context (context  = left or right)
+A_bhavCont = matrix(c(1,1,     # No Hint
+                      0,0,     # Machine-Left Hint
+                      0,0),    # Machine-Right Hint
+                        nrow = 3, byrow = TRUE)
+
+# Assign to vector list:
+# Alternative to the loop in the Matlab script (line 905, 12.06.2022)
+A[[1]] = c(rep(list(A_bhavCont),Ns[2]))
+
+
+# TESTGROUND:
+#A[[1]][[4]][1,1] # works!!! Add in double brakets to fixate an element
+                  # and then 
+#A[[1]][[4]]*c(1,2) # Vector and matrix multiplications work fine!!
+
+
+# Then we specify that the 'Get Hint' behavior state generates a hint that
+# either the left or right slot machine is better, depending on the context
+# state. In this case, the hints are accurate with a probability of pHA. 
+
+pHA = 1 # By default we set this to 1, but try changing its value to 
+        # see how it affects model behavior
+
+A_hintAcc = matrix(c( 0   ,    0   ,   # No Hint
+                     pHA  , (1-pHA),   # Machine-Left Hint
+                   (1-pHA),   pHA) ,   # Machine-Right Hint
+                                 nrow = 3, byrow = TRUE)
+# Assign to vector list:
+A[[1]][[2]] = A_hintAcc 
+
+# Next we specify the mapping between states and wins/losses. The first 
+# two behavior states ('Start' and 'Get Hint') do not generate either 
+# win or loss observations in either context:
+
+A_contWL = matrix(c( 1, 1,   # Null
+                     0, 0,   # Loss
+                     0, 0),  # Win
+                        nrow = 3, byrow = TRUE) 
+# Assign to list:
+# Alt to loop in Matlab script (line 927, 12.06.2022) 
+A[[2]] = c(rep(list(A_contWL),2))
+
+# Choosing the left machine (behavior state 3) generates wins with
+# probability pWin, which differs depending on the context state (columns):
+
+pWin = .8  # By default we set this to .8, but try changing its value to 
+           # see how it affects model behavior
+
+# Does not need an extra name to be assigned: 
+A[[2]][[3]] = matrix(c(      0   ,     0    ,  # Null        
+                         (1-pWin),   pWin   ,  # Loss
+                           pWin  , (1-pWin)),  # Win
+                                          nrow = 3, byrow = TRUE) 
+
+# Choosing the right machine (behavior state 4) generates wins with
+# probability pWin, with the reverse mapping to context states from 
+# choosing the left machine:
+
+# Assign to list:
+A[[2]][[4]] = matrix(c(    0   ,      0   ,   # Null
+                         pWin  ,  (1-pWin),   # Loss
+                       (1-pWin),    pWin) ,   # Win
+                                      ncol = 2, nrow = 3, byrow = TRUE)
+
+# Finally, we specify an identity mapping between behavior states and
+# observed behaviors, to ensure the agent knows that behaviors were carried
+# out as planned. Here, each row corresponds to each behavior state.
+
+A_Id = matrix(c(0,0,  # Start
+                0,0,  # Hint
+                0,0,  # Choose-left
+                0,0), # Choose-right
+                  nrow = 4, byrow = TRUE)  
+
+# Assign to vector list
+A[[3]] = c(rep(list(A_Id),nrow(A_Id)))
+
+# Adds a c(1,1) vector to the respective line (Matlab line 956)
+for (i in 1:Ns[2]){
+  A[[3]][[i]][i,] = c(1,1)
+}
+
+#--------------------------------------------------------------------------
+# Specify prior beliefs about state-outcome mappings in the generative model 
+# (a)
+# Note: This is optional, and will simulate learning state-outcome mappings 
+# if specified.
+#--------------------------------------------------------------------------
+
+# Similar to learning priors over initial states, this simply
+# requires specifying a matrix (a) with the same structure as the
+# generative process (A), but with Dirichlet concentration parameters
+# that can encode beliefs (and confidence in those beliefs) that need
+# not match the generative process. Learning then corresponds to
+# adding to the values of matrix entries, based on what outcomes were 
+# observed when the agent believed it was in a particular state. For
+# example, if the agent observed a win while believing it was in the 
+# 'left better' context and the 'choose left machine' behavior state,
+# the corresponding probability value would increase for that 
+# location in the state outcome-mapping (i.e., a{2}(3,1,3) might 
+# change from .8 to 1.8).
+
+# One simple way to set up this matrix is by:
+
+#  1. initially identifying it with the generative process 
+#  2. multiplying the values by a large number to prevent learning all
+#     aspects of the matrix (so the shape of the distribution changes 
+#     very slowly)
+#  3. adjusting the elements you want to differ from the generative 
+#     process.
+
+# Setup vector list (here a modification of the list A)
+a = A
+
+# As another example, to simulate learning the hint accuracy one
+# might specify:
+a[[1]] = lapply(a[[1]],"*", 200) 
+a[[2]] = lapply(a[[2]],"*", 200) 
+a[[3]] = lapply(a[[3]],"*", 200) 
+
+
+a[[1]][[2]] =  matrix(c(0,     0,    # No Hint
+                      .25,   .25,    # Machine-Left Hint
+                      .25,   .25),   # Machine-Right Hint
+                               nrow = 3, byrow = TRUE)
+
+
+# Controlled transitions and transition beliefs : B{:,:,u} and b(:,:,u)
+#==========================================================================
+
+#--------------------------------------------------------------------------
+# Next, we have to specify the probabilistic transitions between 
+# hidden states under each action (sometimes called 'control states'). 
+# Note: By default, these will also be the transitions beliefs 
+# for the generative model
+#--------------------------------------------------------------------------
+
+# Columns are states at time t. Rows are states at t+1.
+
+# Setup vector list:
+B = c(list())
+
+# The agent cannot control the context state, so there is only 1 'action',
+# indicating that contexts remain stable within a trial:
+
+# Predim list, otherwise assigning via e.e B[[1]][[1]] is not possible, but
+# necessary for the loop later on:
+B[[1]] = c(rep(list(zeros(2,2)),1))
+
+B[[1]][[1]] = matrix(c(1, 0,   # 'Left Better' Context
+                      0, 1),  # 'Right Better' Context
+                         nrow = 2, byrow = TRUE)
+
+# The agent can control the behavior state, and we include 4 possible 
+# actions:
+
+# Pre dim again:
+B[[2]] = c(rep(list(zeros(4,4)),4))
+
+# Adds a c(1,1,1,1) vector to respective line, similar as before
+for (i in 1:Ns[2]){
+  B[[2]][[i]][i,] = ones(1,4)
+}
+
+# THE BELOW IS JUST FOR AN OVERVIEW, but otherwise not necessary so far
+# in this script.
+
+# Move to the Start state from any other state
+B[[2]][[1]] = matrix(c(1, 1, 1, 1,  # Start State
+                       0, 0, 0, 0,  # Hint
+                       0, 0, 0, 0,  # Choose Left Machine
+                       0, 0, 0, 0), # Choose Right Machine
+                               nrow = 4, byrow = TRUE)
+
+# Move to the Hint state from any other state
+B[[2]][[2]] = matrix(c(0, 0, 0, 0,  # Start State
+                       1, 1, 1, 1,  # Hint
+                       0, 0, 0, 0,  # Choose Left Machine
+                       0, 0, 0, 0), # Choose Right Machine
+                               nrow = 4, byrow = TRUE)
+
+# Move to the Choose Left state from any other state
+B[[2]][[3]] = matrix(c(0, 0, 0, 0,  # Start State
+                       0, 0, 0, 0,  # Hint
+                       1, 1, 1, 1,  # Choose Left Machine
+                       0, 0, 0, 0), # Choose Right Machine
+                             nrow = 4, byrow = TRUE)
+
+# Move to the Choose Right state from any other state
+B[[2]][[4]] = matrix(c(0, 0, 0, 0,  # Start State
+                       0, 0, 0, 0,  # Hint
+                       0, 0, 0, 0,  # Choose Left Machine
+                       1, 1, 1, 1), # Choose Right Machine        
+                                 nrow = 4, byrow = TRUE)
+
+
+#--------------------------------------------------------------------------
+# Specify prior beliefs about state transitions in the generative model
+# (b). This is a set of matrices with the same structure as B.
+# Note: This is optional, and will simulate learning state transitions 
+# if specified.
+#--------------------------------------------------------------------------
+
+# For this example, we will not simulate learning transition beliefs. 
+# But, similar to learning d and a, this just involves accumulating
+# Dirichlet concentration parameters. Here, transition beliefs are 
+# updated after each trial when the agent believes it was in a given 
+# state at time t and and another state at t+1.
+
+# Preferred outcomes: C and c
+#==========================================================================
+
+#--------------------------------------------------------------------------
+# Next, we have to specify the 'prior preferences', encoded here as log
+# probabilities. 
+#--------------------------------------------------------------------------
+# One matrix per outcome modality. Each row is an observation, and each
+# columns is a time point. Negative values indicate lower preference,
+# positive values indicate a high preference. Stronger preferences promote
+# risky choices and reduced information-seeking.
+
+# We can start by setting a 0 preference for all outcomes:
+
+# No: number of outcomes in each outcome modality
+No = matrix(c(nrow(A[[1]][[1]]), nrow(A[[2]][[1]]), nrow(A[[3]][[1]]) ))
+No 
+
+# Setup vector list for C
+C = c(list())
+
+C[[1]] = c(rep(list(zeros(No[1],Time)),1))
+C[[2]] = c(rep(list(zeros(No[2],Time)),1))
+C[[3]] = c(rep(list(zeros(No[3],Time)),1))
+
+
+# Alternative for an overview below, but otherwise not necessary:
+
+# Hints
+C[[1]][[1]]      = matrix(c(0, 0, 0,   # Not hint    
+                            0, 0, 0,   # Machine-Left Hint
+                            0, 0, 0),  # Machine-Left Hint
+                                 nrow = 3, byrow = TRUE)
+
+# Wins/Losses
+C[[2]][[1]]      = matrix(c(0, 0, 0,   # Null      
+                            0, 0, 0,   # Loss
+                            0, 0, 0),  # Win
+                                 nrow = 3, byrow = TRUE)
+
+# Observed Behaviors
+
+C[[3]][[1]]      = matrix(c(0, 0, 0, 0,   # Start State     
+                            0, 0, 0, 0,   # Hint
+                            0, 0, 0, 0,   # Choose Left Machine
+                            0, 0, 0, 0),  # Choose Right Machine
+                                  nrow = 4, byrow = TRUE)
+
+# Then we can specify a 'loss aversion' magnitude (la) at time points 2 
+# and 3, and a 'reward seeking' (or 'risk-seeking') magnitude (rs). 
+# Here, rs is divided by 2 at the third time point to encode a smaller 
+# win ($2 instead of $4) if taking the hint before choosing a slot 
+# machine.
+
+la = 1   # By default we set this to 1, but try changing its value to 
+# see how it affects model behavior
+
+rs = 4  # By default we set this to 4, but try changing its value to 
+# see how it affects model behavior
+
+C[[2]][[1]] =  matrix(c(0,  0,   0,      # Null
+                       0, -la, -la,     # Loss
+                       0,  rs,  rs/2),  # win
+                                   nrow = 3, byrow = TRUE)
+
+#--------------------------------------------------------------------------
+# One can also optionally choose to simulate preference learning by
+# specifying a Dirichlet distribution over preferences (c). 
+#--------------------------------------------------------------------------
+
+# This will not be simulated here. However, this works by increasing 
+# the reference magnitude for an outcome each time that outcome is 
+# observed. The assumption here is that preferences naturally increase
+# for entering situations that are more familiar.
+
+# Allowable policies: U or V. 
+#==========================================================================
+
+#--------------------------------------------------------------------------
+# Each policy is a sequence of actions over time that the agent can 
+# consider. 
+#--------------------------------------------------------------------------
+
+# For our simulations, we will specify V, where rows correspond to 
+# time points and should be length T-1 (here, 2 transitions, from 
+# time point 1 to time point 2, and time point 2 to time point 3):
+
+NumPolicies = 5 # Number of policies
+NumFactors = 2 # Number of state factors
+
+V = c(list())
+
+# Pre dim
+V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
+
+
+V[[1]] = ones(Time-1,NumPolicies,NumFactors)
+# V        # actually works, but used lists for R
+
+
+# Deep policies v[[]]
+
+V[[1]][[1]]         = matrix(c(1, 1, 1, 1, 1,
+                               1, 1, 1, 1, 1), # Context state is not controllable
+                                         nrow = 2, byrow = TRUE)
+
+
+V[[1]][[2]]         = matrix(c(1, 2, 2, 3, 4,
+                               1, 3, 4, 1, 1), 
+                                         nrow = 2, byrow = TRUE)
+
+# For V[[1]][[2]], columns left to right indicate policies allowing: 
+# 1. staying in the start state 
+# 2. taking the hint then choosing the left machine
+# 3. taking the hint then choosing the right machine
+# 4. choosing the left machine right away (then returning to start 
+#    state)
+# 5. choosing the right machine right away (then returning to start 
+#    state)
+
+
+# Habits: E and e. 
+#==========================================================================
+
+#--------------------------------------------------------------------------
+# Optional: a columns vector with one entry per policy, indicating 
+# the prior probability of choosing that policy (i.e., independent 
+# of other beliefs). 
+#--------------------------------------------------------------------------
+
+# We will not equip our agent with habits with any starting habits 
+# (flat distribution over policies):
+
+E = matrix(c(1, 1, 1, 1, 1),
+           nrow = 5, ncol = 1, byrow = TRUE)
+
+# To incorporate habit learning, where policies become more likely 
+# after each time they are chosen, we can also specify concentration
+# parameters by specifying e:
+
+e = matrix(c(1, 1, 1, 1, 1), 
+           nrow = 5, ncol = 1, byrow = TRUE)
+
+
+# Additional optional parameters. 
+#==========================================================================
+
+# Eta: learning rate (0-1) controlling the magnitude of concentration 
+# parameter updates after each trial (if learning is enabled).
+
+eta = 1 # Default (maximum) learning rate
+
+# Omega: forgetting rate (0-1) controlling the magnitude of 
+# reduction in concentration parameter values after each trial 
+# (if learning is enabled).
+
+omega = 1 # Default value indicating there is no forgetting 
+# (values < 1 indicate forgetting)
+
+# Beta: Expected precision of expected free energy (G) over 
+# policies (a positive value, with higher values indicating lower 
+# expected precision). Lower values increase the influence of 
+# habits (E) and otherwise make policy selection less deteriministic.
+
+beta = 1 # By default this is set to 1, but try increasing its value 
+# to lower precision and see how it affects model behavior
+
+# Alpha: An 'inverse temperature' or 'action precision' parameter that 
+# controls how much randomness there is when selecting actions 
+# (e.g., how  often the agent might choose not to take the hint, 
+# even if the model assigned the highest probability to that action. 
+# This is a positive number, where higher values indicate less 
+# randomness. Here we set this to a fairly high value:
+
+alpha = 32 # fairly low randomness in action selection
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
