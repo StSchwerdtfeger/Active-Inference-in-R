@@ -24,6 +24,12 @@
 # message passing using Mean-field, Bethe, and Marginal approximations. 
 # Scientific Reports, 9, 1889.
 
+#############
+# Libraries #
+#############
+
+library(pracma)
+
 
 #############
 # Functions # 
@@ -56,7 +62,7 @@ nat_log = function (x) {
 # Replication of the gradient function Matlab-Style
 # for calcualting the 1D numerical gradient.  
 # Alternative use function with same name via library("pracma")
-gradient_test = function (x) {
+gradient = function (x) {
   step = length(x)
   upLim  = step-1 # needed for differences on interior points
   
@@ -78,7 +84,38 @@ gradient_test = function (x) {
   print(result)
 } # END of function
 
+# Normalizing vectors. So far this seems to be enough in R
+# Compare with Matlab code for col_norm(B). 
+# So far I used the same function for B_norm() in the Matlab script. 
+col_norm = function(x){
+  lapply(x,lapply, function(x)(t(t(x)/colSums(x))))
+}
 
+
+#################
+# SPM Functions #
+#################
+
+spm_wnorm = function(x) { # Start of Function:
+  
+  # This is a replication of the bsxfun function to subtract the 
+  # inverse of each column entry from the inverse of the sum of the 
+  # columns and then divide by 2.
+  
+  X = x
+  
+  X1   = lapply(X,"+", exp(-16))
+  X2   = lapply(X1, colSums)
+  
+  X3 = lapply(X2, function(x)(1/x))
+  X4 = lapply(X1, function(x)(1/x))
+  
+  X5 = lapply(X4,"-",as.numeric(X3))
+  x = lapply(X5, "/",2)
+  
+} # End of Function
+
+ 
 #######################
 # Simulation Settings #
 #######################
@@ -114,10 +151,9 @@ Gen_model = 1 # as in the main tutorial code, many parameters
 # Specify Generative Model #
 ############################
 
-# START OF FUNCTION
-#####%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#MDP = explore_exploit_model(Gen_model)
-
+# THE following refers to the Matlab script, as it has a slightyl different 
+# structure, using a function toi switch between Gen_model 1 and 2.
+# This is not needed here.
 # Model specification is reproduced at the bottom of this script 
 # (starting on line 810), but see main tutorial script for more 
 # complete walk-through
@@ -147,19 +183,24 @@ Time = 3
 # Setup vector list for D  
 D = c(list())
 
+# Predim list, otherwise assigning via e.e D[[1]][[1]] is not possible, but
+# necessary for the loop later on:
+D[[1]] = c(rep(list(zeros(2,1)),1)) # can be random.
+D[[2]] = c(rep(list(zeros(2,1)),1)) 
+
 # For the 'context' state factor, we can specify that the 'left better' 
 # context (i.e., where the left slot machine is more likely to win)
 # is the true context:
 
 # matrix(c('left better','right better'))
-D[[1]] = matrix(c(1, 0))  
+D[[1]][[1]] = matrix(c(1, 0))  
 
 # For the 'behavior' state factor, we can specify that the agent 
 # always begins a trial in the 'start' state (i.e., before choosing
 # to either pick a slot machine or first ask for a hint:
 
 # matrix(c('start','hint','choose-left','choose-right'))
-D[[2]] = matrix(c(1, 0, 0, 0))
+D[[2]][[1]] = matrix(c(1, 0, 0, 0))
 
 #--------------------------------------------------------------------------
 # Specify prior beliefs about initial states in the generative model 
@@ -182,19 +223,22 @@ D[[2]] = matrix(c(1, 0, 0, 0))
 
 # Setup vector list for d
 d = c(list())
+d[[1]] = c(rep(list(zeros(2,1)),1)) # can be random.
+d[[2]] = c(rep(list(zeros(2,1)),1)) # can be random.
+
 
 # For context beliefs, we can specify that the agent starts out believing 
 # that both contexts are equally likely, but with somewhat low confidence 
 # in these beliefs:
 
 # matrix(c('left better','right better'))
-d[[1]] = matrix(c(.25,.25)) 
+d[[1]][[1]] = matrix(c(.25,.25)) 
 
 # For behavior beliefs, we can specify that the agent expects with 
 # certainty that it will begin a trial in the 'start' state:
 
 # matrix(c('start','hint','choose-left','choose-right'))
-d[[2]] = matrix(c(1, 0, 0, 0))
+d[[2]][[1]] = matrix(c(1, 0, 0, 0))
 
 
 # State-outcome mappings and beliefs: A and a
@@ -221,7 +265,7 @@ A = c(list())
 # observation across all behavior states:
 
 ## number of states in each state factor (2 and 4)
-Ns = matrix(c(length(D[[1]]), length(D[[2]])))      
+Ns = matrix(c(length(D[[1]][[1]]), length(D[[2]][[1]])))      
 Ns
 
 ### A_bhav / context (context  = left or right)
@@ -529,11 +573,6 @@ V = c(list())
 # Pre dim
 V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
 
-
-V[[1]] = ones(Time-1,NumPolicies,NumFactors)
-# V        # actually works, but used lists for R
-
-
 # Deep policies v[[]]
 
 V[[1]][[1]]         = matrix(c(1, 1, 1, 1, 1,
@@ -611,68 +650,70 @@ beta = 1 # By default this is set to 1, but try increasing its value
 alpha = 32 # fairly low randomness in action selection
 
 
+## Define POMDP Structure
+#==========================================================================
+
+mdp.T = Time                 # Number of time steps
+mdp.V = V                    # allowable (deep) policies
+
+mdp.A = A                    # state-outcome mapping
+mdp.B = B                    # transition probabilities
+mdp.C = C                    # preferred states
+mdp.D = D                    # priors over initial states
+mdp.d = d                    # enable learning priors over initial states
 
 
+if (Gen_model == 1){
+  mdp.E = E }              # prior over policies
+
+if (Gen_model == 2){
+  mdp.a = a                # enable learning state-outcome mappings
+  mdp.e = e                # enable learning of prior over policies
+}
+
+mdp.eta = eta                 # learning rate
+mdp.omega = omega             # forgetting rate
+mdp.alpha = alpha             # action precision
+mdp.beta = beta               # expected free energy precision
 
 
+# respecify for use in inversion script (specific to this tutorial example)
+mdp.NumPolicies = NumPolicies  # Number of policies
+mdp.NumFactors = NumFactors    # Number of state factors
 
+# MDP list/structure to work with
+# MDP = list(mdp)
 
+MDP = list(a,A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors)     
 
+# (Re)name items of list
+names(MDP) = c("a","A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors")
 
+A = col_norm(A)
+B = col_norm(B)
+D = col_norm(D)
 
+# Store initial paramater values of generative model for free energy 
+# calculations after learning
+#--------------------------------------------------------------------------
 
+## 'complexity' of d vector concentration paramaters
 
+# Set vector list using d: as in the Matlab script, just 
+# outside any loopin'
+d_prior = MDP$d
+  
+# MDP$d set just for dimensional reasons
+d_complexity = MDP$d  
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+for (factor in 1:length(d)){
+  # compute "complexity" - lower concentration paramaters have
+  # smaller values creating a lower expected free energy thereby
+  # encouraging 'novel' behaviour 
+  d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
+} 
+ 
+d_complexity
 
 
 
