@@ -871,8 +871,63 @@ NumIterations  = 16  # number of message passing iterations
 ### Lets go! Message passing and policy selection 
 #--------------------------------------------------------------------------
 
+# Pre-set of lists and matrices
 
+# Set simple list for prob_state:    
+prob_state = c(list())
+# Set matrix for true_states:
+true_states = matrix(1, nrow = NumFactors, ncol = Time)
+# Set matrix fro outcomes:
+outcomes = matrix(1, nrow = NumModalities, ncol = Time)
+# Set up vector list, dimmed as matrix for O:
+O = vector("list", NumModalities*Time)
+dim(O) = matrix(c(NumModalities, Time))
 
+### Adjustments for testing:
+###
+chosen_action = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
+
+for (t in 1:Time){  # loop over time points
+  
+  # sample generative process
+  #------------------------------------------------------------------------
+  for (factor in 1:NumFactors){ # number of hidden state factors
+    # Here we sample from the prior distribution over states to obtain the
+    # state at each time point. At T = 1 we sample from the D vector, and at
+    # time T > 1 we sample from the B matrix. To do this we make a vector 
+    # containing the cumulative sum of the columns (which we know sum to one), 
+    # generate a random number (0-1),and then use the find function to take 
+    # the first number in the cumulative sum vector that is >= the random number. 
+    # For example if our D vector is [.5 .5] 50% of the time the element of the 
+    # vector corresponding to the state one will be >= to the random number. 
+    
+    # sample states 
+    if (t == 1){
+      prob_state = D[[factor]] # sample initial state T = 1 # WORKS! 1 0 0 0 Transp.
+    } #
+    else if (t > 1){
+      prob_state <- B[[factor]][[true_states[[factor, t-1]]]][,chosen_action[[factor, t-1]]]
+    } #
+    true_states[[factor,t]] = which(cumsum(prob_state[[1]])>= runif(1))[1]
+  } # End loop factor
+  
+  # sample observations
+  for (modality in 1:NumModalities){ # loop over number of outcome modalities
+    outcomes[[modality,t]] = which(cumsum(a[[modality]][[true_states[[2,t]]]][,true_states[[1,t]]])>=runif(1))[1]
+  }
+  
+  # express observations as a structure containing a 1 x observations 
+  # vector for each modality with a 1 in the position corresponding to
+  # the observation recieved on that trial
+  for (modality in 1:NumModalities){
+    vec = matrix(0,ncol=nrow(a[[modality]][[1]]))
+    index = outcomes[[modality,t]]
+    vec[[1,index]] = 1
+    O[[modality,t]] = vec 
+    
+  }
+  
+} # End loop Time
 
 
 
