@@ -56,7 +56,7 @@ softmaxCOL <- function(probs){
 # natural log that replaces zero values with very small values for 
 # numerical reasons (as log(0) is not defined).
 nat_log = function (x) {
-  x = log(x+exp(-16))
+  log(x+exp(-16))
 }
 
 # Replication of the gradient function Matlab-Style
@@ -145,7 +145,7 @@ spm_wnorm = function(x) { # Start of Function:
 # below to 1. To do so for priors (d), likelihoods (a), and habits (e), 
 # set the 'Gen_model' variable to 2:
 
-Gen_model = 1 # as in the main tutorial code, many parameters 
+Gen_model = 2 # as in the main tutorial code, many parameters 
               # can be adjusted in the model setup, within the 
               # explore_exploit_model function [[starting on line 810]]
               # (Matlab code). This includes, among others (similar to 
@@ -540,10 +540,10 @@ C[[2]][[1]]      = matrix(c(0, 0, 0,   # Null
 
 # Observed Behaviors
 
-C[[3]][[1]]      = matrix(c(0, 0, 0, 0,   # Start State     
-                            0, 0, 0, 0,   # Hint
-                            0, 0, 0, 0,   # Choose Left Machine
-                            0, 0, 0, 0),  # Choose Right Machine
+C[[3]][[1]]      = matrix(c(0, 0, 0,   # Start State     
+                            0, 0, 0,   # Hint
+                            0, 0, 0,   # Choose Left Machine
+                            0, 0, 0),  # Choose Right Machine
                                   nrow = 4, byrow = TRUE)
 
 # Then we can specify a 'loss aversion' magnitude (la) at time points 2 
@@ -709,8 +709,13 @@ MDP = list(a,A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors)
 # (Re)name items of list
 names(MDP) = c("a","A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors")
 
+# Col_norm of A
 A = col_norm(A)
+
+# Col_norm of B
 B = col_norm(B)
+
+# Col_norm of D
 D = col_norm(D)
 
 
@@ -734,7 +739,7 @@ for (factor in 1:length(d)){
   d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
 } 
  
-d_complexity # So far spm_wnorm is sound with vectors!!
+d_complexity 
 
 # complexity of a maxtrix concentration parameters
 # similar to d:
@@ -746,8 +751,125 @@ for (modality in 1:length(a)){
   for (i in length(a_complexity[[modality]])){
     a_complexity[[modality]][[i]]=a_complexity[[modality]][[i]]*GreaterZero(a_prior[[modality]])[[i]]
   }
-} # Checked on all GreaterZero results and seems to be fine 
+} # Checked on all GreaterZero results and seems to be fine
 
+# Normalise matrices before model inversion/inference
+#--------------------------------------------------------------------------
+
+## normalize a matrix
+
+if(Gen_model==2){
+  a = col_norm(a)      # For check: MDP$a = a
+} 
+if(Gen_model==1){
+  a = col_norm(A)
+}                                   
+
+# No field for b defined in the SimpSimScript, so no coditions:
+b = col_norm(B)      # For check: MDP$a = a
+
+for(modality in 1:length(C)){
+  C[[modality]] = lapply(C[[modality]],"+",1/32) # So far definitly right!
+  for (t in 1:Time){
+    C[[modality]][[1]][,t] = nat_log(softmaxCOL(C[[modality]][[1]][,t]))
+  }
+}
+
+## normalize d matrix
+
+if(Gen_model==2){
+  d = col_norm(d)      # For check: MDP$a = a
+} 
+if(Gen_model==1){
+  d = col_norm(D)
+}                                   
+E
+Et
+# normalize E vector
+if (Gen_model == 1){
+  E = MDP$e
+  E = E/sum(E) 
+}
+if (Gen_model==2){
+  E = MDP$E
+  E = E/sum(E)
+}
+#else{  # NOT NEEDED, but maybe for the actual Tut script.
+#  E = col_norm(ones(NumPolicies,1))
+#  E = E/sum(E)
+#}
+
+# Initialize variables
+#--------------------------------------------------------------------------
+
+# numbers of transitions, policies and states
+NumModalities = length(a)         # number of outcome factors
+NumFactors = length(d)            # number of hidden state factors
+NumPolicies = ncol(V[[1]][[1]])   # number of allowable policies
+
+# Setup matrix
+NumStates = matrix(0,nrow=NumFactors)
+NumControllable_transitions = matrix(0,nrow=NumFactors)
+
+for(factor in 1:NumFactors){
+  NumStates[[factor]] = nrow(b[[factor]][[1]])
+  NumControllable_transitions[[factor]] = length(b[[factor]])
+}
+
+# Setup vector list for state_posterior:
+state_posterior = c(list())
+for(factor in 1: NumFactors){
+  state_posterior[[factor]] = c(rep(list(),1))
+}
+
+# initialize the approximate posterior over states conditioned on 
+# policies for each factor as a flat distribution over states at 
+# each time point
+
+for(policy in 1:NumPolicies){
+  for(factor in 1: NumFactors){
+    state_posterior[[factor]][[policy]] = matrix(1, 
+                                              nrow = NumStates[[factor]],
+                                              ncol = Time)
+    state_posterior[[factor]][[policy]] = state_posterior[[factor]][[policy]]/NumStates[[factor]]
+  }
+}
+
+# initialize the approximate posterior over policies as a flat 
+# distribution over policies at each time point
+policy_posteriors = matrix(1,NumPolicies,Time)/NumPolicies
+
+# initialize posterior over actions:
+chosen_action = matrix(0, nrow = length(B), ncol = Time-1)
+
+# if there is only one policy
+for(factor in 1:NumFactors){
+  if(NumControllable_transitions[[factor]]==1){
+    chosen_action[factor,] = matrix(1,nrow =1,ncol=Time-1)
+  }
+}
+
+# Add to MDP list:   
+# [[LOOKING FOR DIFFERENT WAY]] => Rlist package list.append() can be used
+# but adds another package needed... 
+MDP = list(a,A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors,chosen_action)
+MDP = list.append(MDP,chosen_action)
+# (Re)name items of list
+names(MDP) = c("a","A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action")
+
+# Set list for gamma:
+gamma = list()
+
+# initialize expected free energy precision (beta)
+posterior_beta = 1
+gamma[[1]] = (1/posterior_beta) # expected free energy precision
+
+# message passing variables
+TimeConst = 4        # time constant for gradient descent
+NumIterations  = 16  # number of message passing iterations
+
+### Lets go! Message passing and policy selection 
+#--------------------------------------------------------------------------
 
 
 
