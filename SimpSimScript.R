@@ -91,6 +91,14 @@ col_norm = function(x){
   lapply(x,lapply, function(x)(t(t(x)/colSums(x))))
 }
 
+# used to only keep those values in a list that are greater than zero 
+# refers to line 104 in the Matlab script:
+GreaterZero = function(x){
+  TrueGreatZero = function(x){x>0}
+  checkLog = lapply(x,TrueGreatZero) # Works both!
+  trueISone = function(x){ x = x*1}
+  checkNum = lapply(checkLog,trueISone)
+}
 
 #################
 # SPM Functions #
@@ -101,18 +109,30 @@ spm_wnorm = function(x) { # Start of Function:
   # This is a replication of the bsxfun function to subtract the 
   # inverse of each column entry from the inverse of the sum of the 
   # columns and then divide by 2.
-  
-  X = x
-  
-  X1   = lapply(X,"+", exp(-16))
-  X2   = lapply(X1, colSums)
-  
-  X3 = lapply(X2, function(x)(1/x))
-  X4 = lapply(X1, function(x)(1/x))
-  
-  X5 = lapply(X4,"-",as.numeric(X3))
-  x = lapply(X5, "/",2)
-  
+  if(ncol(as.matrix(x[[1]])) == 1){
+    
+    X = x
+    
+    X1   = lapply(X,"+", exp(-16))
+    X2   = lapply(X1, colSums)
+    
+    X3 = lapply(X2, function(x)(1/x))
+    X4 = lapply(X1, function(x)(1/x))
+    
+    X5 = lapply(X4,"-",as.numeric(X3[[1]]))
+    x = lapply(X5, "/",2)
+    
+  } # End if
+  else{
+    x   = lapply(x,"+", exp(-16))
+    for(i in 1:length(x)){
+      A = 1/colSums(x[[i]]) # Correct up to here! Matlab:  1./sum(A,1)
+      B = 1/x[[i]]
+      x2 =  (A-B)/2 #lapply(X2,"-",X3)
+      x[[i]] = x2
+    } # End of loop
+    x=x # Necessary to assign the values obtained from the loop!
+  } # End else if
 } # End of Function
 
  
@@ -693,6 +713,7 @@ A = col_norm(A)
 B = col_norm(B)
 D = col_norm(D)
 
+
 # Store initial paramater values of generative model for free energy 
 # calculations after learning
 #--------------------------------------------------------------------------
@@ -713,7 +734,22 @@ for (factor in 1:length(d)){
   d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
 } 
  
-d_complexity
+d_complexity # So far spm_wnorm is sound with vectors!!
+
+# complexity of a maxtrix concentration parameters
+# similar to d:
+a_prior = MDP$a
+a_complexity = c(list())
+
+for (modality in 1:length(a)){
+  a_complexity[[modality]] = spm_wnorm(a_prior[[modality]]) # *GreaterZero(a_prior[[modality]]) 
+  for (i in length(a_complexity[[modality]])){
+    a_complexity[[modality]][[i]]=a_complexity[[modality]][[i]]*GreaterZero(a_prior[[modality]])[[i]]
+  }
+} # Checked on all GreaterZero results and seems to be fine 
+
+
+
 
 
 
