@@ -883,6 +883,18 @@ outcomes = matrix(1, nrow = NumModalities, ncol = Time)
 O = vector("list", NumModalities*Time)
 dim(O) = matrix(c(NumModalities, Time))
 
+# Re-list "a" as a cell array in order to be able to perform a
+# work aroung of the permute() function in Matlab.
+# Still looking for a consistent approach, when enlisting..
+# Orginial matlab line: 209 i  question (within the loop) 
+# lnA = permute(nat_log(a{modal}(outcomes(modal,tau),:,:,:,:,:)),[2 3 4 5 6 1])
+aa <- c(rep(list(array(0, c(3, 2, 4))), 2), list(array(0, c(4, 2, 4))))
+for (i in 1:length(A)){
+  for (ii in 1:length(A[[1]])){
+    aa[[i]][,,ii] = a[[i]][[ii]] 
+  }
+}
+
 ### Adjustments for testing:
 ###
 chosen_action = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
@@ -914,7 +926,7 @@ for (t in 1:Time){  # loop over time points
   # sample observations
   for (modality in 1:NumModalities){ # loop over number of outcome modalities
     outcomes[[modality,t]] = which(cumsum(a[[modality]][[true_states[[2,t]]]][,true_states[[1,t]]])>=runif(1))[1]
-  }
+  }# End loop modality
   
   # express observations as a structure containing a 1 x observations 
   # vector for each modality with a 1 in the position corresponding to
@@ -925,9 +937,36 @@ for (t in 1:Time){  # loop over time points
     vec[[1,index]] = 1
     O[[modality,t]] = vec 
     
-  }
+  } # End loop modality
   
+  # marginal message passing (minimize F and infer posterior over states)
+  #----------------------------------------------------------------------
+  
+  for (policy in 1:NumPolicies){
+    for (Ni in 1:NumIterations){ # number of iterations of message passing  
+      for (factor in 1:NumFactors){
+        # initialise matrix containing the log likelihood of observations:
+        lnAo = rep(list(matrix(0, nrow = nrow(state_posterior[[factor]][[1]]), 
+                                  ncol = ncol(state_posterior[[factor]][[1]]))), 
+                                length(state_posterior[[factor]]))
+        for (tau in 1:Time){ # loop over tau
+          # convert approximate posteriors into depolarisation variable v
+          v_depolarization = nat_log(state_posterior[[factor]][[policy]][,tau])
+          if (tau < t+1){ # Collect an observation from the generative process when tau <= t
+            for (modal in 1:NumModalities){ # loop over observation modalities
+              # this line uses the observation at each tau to index
+              # into the A matrix to grab the likelihood of each hidden state
+              # NOTE: makes use of array list "aa" as alternative to "a",
+              # to work around the permute() function in Matlab:
+              lnA <- nat_log(aa[[modal]][outcomes[[modal, tau]],,])
+            } # End loop modal 
+          } # End if tau < t+1
+        } # End loop tau
+      } # End loop factor
+    } # End loop Ni
+  } # End loop policies
 } # End loop Time
+
 
 
 
