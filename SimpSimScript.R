@@ -95,10 +95,21 @@ col_norm = function(x){
 # refers to line 104 in the Matlab script:
 GreaterZero = function(x){
   TrueGreatZero = function(x){x>0}
-  checkLog = lapply(x,TrueGreatZero) # Works both!
+  checkLogic = lapply(x,TrueGreatZero) # Works both!
   trueISone = function(x){ x = x*1}
-  checkNum = lapply(checkLog,trueISone)
+  checkNum = lapply(checkLogic,trueISone)
 }
+
+# dot product along dimension f (maybe %*%?)
+md_dot = function (A,s,f){ 
+  if (f == 1){
+    B = t(A)%*%s 
+  }
+  else if (f == 2){
+    B = A%*%s
+  }
+}
+
 
 #################
 # SPM Functions #
@@ -783,8 +794,8 @@ if(Gen_model==2){
 if(Gen_model==1){
   d = col_norm(D)
 }                                   
-E
-Et
+
+
 # normalize E vector
 if (Gen_model == 1){
   E = MDP$e
@@ -853,7 +864,7 @@ for(factor in 1:NumFactors){
 # [[LOOKING FOR DIFFERENT WAY]] => Rlist package list.append() can be used
 # but adds another package needed... 
 MDP = list(a,A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors,chosen_action)
-MDP = list.append(MDP,chosen_action)
+
 # (Re)name items of list
 names(MDP) = c("a","A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action")
 
@@ -959,6 +970,15 @@ for (t in 1:Time){  # loop over time points
               # NOTE: makes use of array list "aa" as alternative to "a",
               # to work around the permute() function in Matlab:
               lnA <- nat_log(aa[[modal]][outcomes[[modal, tau]],,])
+              for (fj in 1:NumFactors){
+                # dot product with state vector from other hidden state factors 
+                # (this is what allows hidden states to interact in the likleihood mapping)    
+                if (fj != factor){        
+                  lnAs = md_dot((lnA),state_posterior[[fj]][[1]][,tau],fj)
+                  lnA = lnAs # Matlab uses "clear" here as well - needed? 
+                } # End if fj != factor
+              } # End loop fj
+              lnAo[[1]][,tau] = mapply("+",lnAo[[1]][,tau], lnA) # very different to Matlab, but results in the same
             } # End loop modal 
           } # End if tau < t+1
         } # End loop tau
@@ -966,11 +986,5 @@ for (t in 1:Time){  # loop over time points
     } # End loop Ni
   } # End loop policies
 } # End loop Time
-
-
-
-
-
-
 
 
