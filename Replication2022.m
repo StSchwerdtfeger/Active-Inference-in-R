@@ -220,14 +220,39 @@ for t = 1:T % loop over time points
                             lnAo(:,tau) = lnAo(:,tau) + lnA;
                         end
                     end
+                                        % 'forwards' and 'backwards' messages at each tau
+                    if tau == 1 % first tau
+                        lnD = nat_log(d{factor}); % forward message
+                        lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
+                    elseif tau == T % last tau                    
+                        lnD  = nat_log((b{factor}(:,:,V(tau-1,policy,factor)))*state_posterior{factor}(:,tau-1,policy));% forward message 
+                        lnBs = zeros(size(d{factor})); % backward message
+                    else % 1 > tau > T
+                        lnD  = nat_log(b{factor}(:,:,V(tau-1,policy,factor))*state_posterior{factor}(:,tau-1,policy));% forward message
+                        lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
+                    end
                 end
             end
         end
     end
 end
-test = lnAo(:,2)
-test= size(lnAo(:,:)) % dim is 4 15 and it is just all collumns next to each other!
-%lnAotest(:,1) = lnAo(:,1) + lnA;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 %%%%%%%%%%%%%%%% Functions!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -264,6 +289,8 @@ elseif f == 2
     B = A*s;
 end 
 end
+
+
 
 
 function MDP = explore_exploit_model(Gen_model)
@@ -674,3 +701,13 @@ mdp.label = label;
 
 MDP = mdp;
 end
+
+% norm the elements of B transpose as required by MMP
+function b = B_norm(B)
+bb = B; 
+z = sum(bb,1); %create normalizing constant from sum of columns
+bb = bb./z; % divide columns by constant
+bb(isnan(bb)) = 0; %replace NaN with zero
+b = bb;
+% insert zero value condition
+end 
