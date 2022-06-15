@@ -90,6 +90,18 @@ gradient = function (x) {
 col_norm = function(x){
   lapply(x,lapply, function(x)(t(t(x)/colSums(x))))
 }
+testoar = c(1,1)
+
+# B_norm 
+B_norm = function(x){
+  bb = x
+  z  = colSums(t(bb))     # create normalizing constant from sum of columns
+  bb = t(bb/z)            # divide columns by constant
+                       # z is a vector [1] 1 1; using "/" z
+  bb[is.nan(bb)] = 0   # replace NaN with zero (probably not necessary in R)
+  b = bb
+  return(b)
+}
 
 # used to only keep those values in a list that are greater than zero 
 # refers to line 104 in the Matlab script:
@@ -778,6 +790,11 @@ if(Gen_model==1){
 
 # No field for b defined in the SimpSimScript, so no coditions:
 b = col_norm(B)      # For check: MDP$a = a
+# For the loop, we also have to add some NA values, as b[[1]][[1 to 1 only]]
+# which makes some troubles in the loop. 
+for (i in 2:length(B[[2]])){
+  b[[1]][[i]] = matrix(0,2,2)
+}
 
 for(modality in 1:length(C)){
   C[[modality]] = lapply(C[[modality]],"+",1/32) # So far definitly right!
@@ -969,7 +986,7 @@ for (t in 1:Time){  # loop over time points
               # into the A matrix to grab the likelihood of each hidden state
               # NOTE: makes use of array list "aa" as alternative to "a",
               # to work around the permute() function in Matlab:
-              lnA <- nat_log(aa[[modal]][outcomes[[modal, tau]],,])
+              lnA = nat_log(aa[[modal]][outcomes[[modal, tau]],,])
               for (fj in 1:NumFactors){
                 # dot product with state vector from other hidden state factors 
                 # (this is what allows hidden states to interact in the likleihood mapping)    
@@ -979,12 +996,35 @@ for (t in 1:Time){  # loop over time points
                 } # End if fj != factor
               } # End loop fj
               lnAo[[1]][,tau] = mapply("+",lnAo[[1]][,tau], lnA) # very different to Matlab, but results in the same
+              # Matlab: size(lnAo(:,:)) % dim is 4 15 and it is just all collumns next to each other!
+              # size of lnAo itself though is 4 3 5; considering tau=3, the change only concerns the cols of lnAo[[1]]
             } # End loop modal 
           } # End if tau < t+1
+          # 'forwards' and 'backwards' messages at each tau
+          if (tau == 1){ # first tau
+            # forward message
+            lnD = nat_log(d[[factor]][[1]]) 
+            # backward message
+            lnBs = nat_log(B_norm(b[[factor]][[V[[1]][[tau]][factor,policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+          } # End if tau == 1
+          else if (tau == Time){ # last tau  
+            # foward message
+            lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
+            # Backward message:
+            lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
+          }
+          else { # 1 < tau < Time
+            # foward message
+            lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
+            lnBs = nat_log(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+          }
+          
         } # End loop tau
       } # End loop factor
     } # End loop Ni
   } # End loop policies
 } # End loop Time
 
-
+lnA
+lnBs
+lnD # Appears to be correct up to now (see Replication2022.m for comparison)
