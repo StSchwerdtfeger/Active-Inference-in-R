@@ -459,11 +459,21 @@ B = c(list())
 
 # Predim list, otherwise assigning via e.e B[[1]][[1]] is not possible, but
 # necessary for the loop later on:
-B[[1]] = c(rep(list(zeros(2,2)),1))
+B[[1]] = c(rep(list(zeros(2,2)),4))
 
 B[[1]][[1]] = matrix(c(1, 0,   # 'Left Better' Context
                       0, 1),  # 'Right Better' Context
                          nrow = 2, byrow = TRUE)
+
+# For the loop, we have consider B[[1]][] having the same dim as B[[2]][].
+# The reason is that B[[1]] refers to the context state, which is an identity
+# matrix. In R we have to represent the identity, such that the the length
+# of B[[1]] == B[[2]]. Otherwise the loop spits out funny values. Compare
+# page 26 in the ATUT on B[[1]] being identity matrix by intention. 
+
+for (i in 1:4){
+  B[[1]][[i]] = B[[1]][[1]]
+}
 
 # The agent can control the behavior state, and we include 4 possible 
 # actions:
@@ -790,11 +800,6 @@ if(Gen_model==1){
 
 # No field for b defined in the SimpSimScript, so no coditions:
 b = col_norm(B)      # For check: MDP$a = a
-# For the loop, we also have to add some NA values, as b[[1]][[1 to 1 only]]
-# which makes some troubles in the loop. 
-for (i in 2:length(B[[2]])){
-  b[[1]][[i]] = matrix(0,2,2)
-}
 
 for(modality in 1:length(C)){
   C[[modality]] = lapply(C[[modality]],"+",1/32) # So far definitly right!
@@ -923,6 +928,18 @@ for (i in 1:length(A)){
   }
 }
 
+# Setup vector list for Ft
+#Ft[[factor]][[t]][tau,Ni] - the matrix [tau,Ni] itself does not need
+Ft = list()
+for(factor in 1: NumFactors){
+  Ft[[factor]] = c(rep(list(),1))
+  for(t in 1:Time){
+    Ft[[factor]][[t]] = matrix(0,nrow=Time, ncol=NumIterations)
+  } # End t
+} # End factor
+
+vv= state_posterior
+
 ### Adjustments for testing:
 ###
 chosen_action = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
@@ -1005,7 +1022,7 @@ for (t in 1:Time){  # loop over time points
             # forward message
             lnD = nat_log(d[[factor]][[1]]) 
             # backward message
-            lnBs = nat_log(B_norm(b[[factor]][[V[[1]][[tau]][factor,policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[tau]][factor,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           } # End if tau == 1
           else if (tau == Time){ # last tau  
             # foward message
@@ -1016,15 +1033,21 @@ for (t in 1:Time){  # loop over time points
           else { # 1 < tau < Time
             # foward message
             lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
-            lnBs = nat_log(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           }
-          
         } # End loop tau
+        # variational free energy at each time point
+        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
+        # here we both combine the messages and perform a gradient
+        # descent on the posterior.
+        v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
       } # End loop factor
     } # End loop Ni
   } # End loop policies
 } # End loop Time
 
-lnA
-lnBs
-lnD # Appears to be correct up to now (see Replication2022.m for comparison)
+
+
+
+
+
