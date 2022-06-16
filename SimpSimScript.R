@@ -1087,6 +1087,8 @@ for (t in 1:Time){  # loop over time points
   } # End loop policies
 } # End loop Time
 
+# Still unknown issues with Ft, when factor == 2
+                
 # RESET/RE-INITILIZE State_posterior for simple re-rung of the loop only
 for(policy in 1:NumPolicies){
   for(factor in 1: NumFactors){
