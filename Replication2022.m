@@ -238,25 +238,18 @@ for t = 1:T % loop over time points
                 v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
                 % variational free energy at each time point
                 Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
-            
+                % update posterior by running v through a softmax 
+                state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));   
+                % store state_posterior (normalised firing rate) from each epoch of
+                % gradient descent for each tau
+                normalized_firing_rates{factor}(Ni,:,tau,t,policy) = state_posterior{factor}(:,tau,policy); 
+                % store v (non-normalized log posterior or 'membrane potential') 
+                % from each epoch of gradient descent for each tau
+                prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
             end
         end
     end
 end
-
-test=state_posterior{1}(:,1,1)'
-%Ftt = state_posterior{1}(:,1,1)'*(.5*lnD + .5*lnBs + lnAo(:,1) - nat_log(state_posterior{1}(:,1,1)));
-%testFT=(.5*lnD + .5*lnBs + lnAo(:,1) - nat_log(state_posterior{1}(:,1,1)));
-restFt=nat_log(state_posterior{1}(:,1,1))
-rtests=(.5*lnD + .5*lnBs + lnAo(:,1))
-%test= Ft(tau,Ni,t,factor)
-%      ft(row,col, list,list)
-test= Ft(1,1,1,1) % 2 lists with three elements with each 3=row*16=col
-test1= Ft(:,:,1,1) % first element of the first list containing 1 matrix with 3*16
-test2= Ft(:,1,1,1) % first column of that element i.e. of 16 columns
-test3= Ft(:,:,:,1)
-
-
 
 
 
