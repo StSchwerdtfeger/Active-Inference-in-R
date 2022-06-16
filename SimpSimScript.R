@@ -861,7 +861,7 @@ for(factor in 1: NumFactors){
 
 for(policy in 1:NumPolicies){
   for(factor in 1: NumFactors){
-    state_posterior[[factor]][[policy]] = matrix(1, 
+    state_posterior[[factor]][[policy]] = matrix(0, 
                                               nrow = NumStates[[factor]],
                                               ncol = Time)
     state_posterior[[factor]][[policy]] = state_posterior[[factor]][[policy]]/NumStates[[factor]]
@@ -938,7 +938,37 @@ for(factor in 1: NumFactors){
   } # End t
 } # End factor
 
-vv= state_posterior
+# Setup list for normalized_firing_rates
+# normalized_firing_rates[[factor]][[policy]][[t]][Ni,]
+normalized_firing_rates = list()
+for(factor in 1: NumFactors){
+  normalized_firing_rates[[factor]] = c(rep(list(),1))
+  for(policy in 1:NumPolicies){
+    normalized_firing_rates[[factor]][[policy]] = c(rep(list(),1))
+    for(t in 1:Time){
+      normalized_firing_rates[[factor]][[policy]][[t]] = c(rep(list(),1))
+      for(tau in 1:Time){
+        normalized_firing_rates[[factor]][[policy]][[t]][[tau]] = c(rep(list(),1))
+        for(Ni in 1:NumIterations){
+          normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = c(rep(list(),1))
+          normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = matrix(0,nrow=1, ncol=nrow(state_posterior[[factor]][[1]]))
+        } # End Ni
+      } # End tau
+    } # End t
+  } # End policy
+} # End factor
+
+# Setup list prediction_errors equivalent to normalized_firing_rates
+prediction_error = normalized_firing_rates
+
+# List for prediction error and normalized_firign_rates
+# prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
+prediction_error1 = list()
+for(factor in 1:NumFactors){
+  prediction_error1[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
+}
+normalized_firing_rates1=prediction_error1
+
 
 ### Adjustments for testing:
 ###
@@ -1035,19 +1065,43 @@ for (t in 1:Time){  # loop over time points
             lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
             lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           }
-        } # End loop tau
-        # variational free energy at each time point
-        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
         # here we both combine the messages and perform a gradient
         # descent on the posterior.
         v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
+        # variational free energy at each time point
+        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
+        #normalized_firing_rates1[[factor,t,tau,policy,Ni]] = t(state_posterior[[factor]][[policy]][,tau])
+        # update state_posterior running v through a softmax:
+        state_posterior[[factor]][[policy]][,tau] = softmax(t(v_depolarization))#t(exp(v_depolarization)/sum(exp(v_depolarization))) #softmax(v_depolarization) # 
+        # store state_posterior (normalised firing rate) from each epoch of
+        # gradient descent for each tau
+        normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = state_posterior[[factor]][[policy]][,tau]
+        normalized_firing_rates1[[factor]][[1]][Ni,,tau,t,policy] = state_posterior[[factor]][[policy]][,tau]
+        # store v (non-normalized log posterior or 'membrane potential') 
+        # from each epoch of gradient descent for each tau
+        prediction_error[[factor]][[policy]][[t]][[tau]][[Ni]] = as.vector(v_depolarization)
+        prediction_error1[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
+        } # End loop tau.  ##### NOTE: Matlabscript different, as loop ends before secend appearence of v_depolarization
       } # End loop factor
     } # End loop Ni
   } # End loop policies
 } # End loop Time
 
+# RESET/RE-INITILIZE State_posterior for simple re-rung of the loop only
+for(policy in 1:NumPolicies){
+  for(factor in 1: NumFactors){
+    state_posterior[[factor]][[policy]] = matrix(0, 
+                                                 nrow = NumStates[[factor]],
+                                                 ncol = Time)
+    state_posterior[[factor]][[policy]] = state_posterior[[factor]][[policy]]/NumStates[[factor]]
+  }
+}
 
 
-
-
-
+# From now no simple RE-RUN of the loop is not possible anymore possible,
+# as some lists have to pre-set again first. 
+# I also used two different kinds of lists for prediction_error and normalized_firing_rates
+# I will probably completly switch to arrays of that form, equivalent to Matlab - will see. 
+             
+                
+                
