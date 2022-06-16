@@ -202,6 +202,7 @@ for t = 1:T % loop over time points
             lnAo = zeros(size(state_posterior{factor})); % initialise matrix containing the log likelihood of observations
                 for tau = 1:T % loop over tau
                     v_depolarization = nat_log(state_posterior{factor}(:,tau,policy)); % convert approximate posteriors into depolarisation variable v
+                    vv{factor}(:,tau,policy) = v_depolarization
                     if tau<t+1 % Collect an observation from the generative process when tau <= t
                         for modal = 1:NumModalities % loop over observation modalities
                             % this line uses the observation at each tau to index
@@ -232,15 +233,28 @@ for t = 1:T % loop over time points
                         lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
                     end
                 end
+                % here we both combine the messages and perform a gradient
+                % descent on the posterior 
+                v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
+                % variational free energy at each time point
+                Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
+            
             end
         end
     end
 end
 
-
-
-
-
+test=state_posterior{1}(:,1,1)'
+%Ftt = state_posterior{1}(:,1,1)'*(.5*lnD + .5*lnBs + lnAo(:,1) - nat_log(state_posterior{1}(:,1,1)));
+%testFT=(.5*lnD + .5*lnBs + lnAo(:,1) - nat_log(state_posterior{1}(:,1,1)));
+restFt=nat_log(state_posterior{1}(:,1,1))
+rtests=(.5*lnD + .5*lnBs + lnAo(:,1))
+%test= Ft(tau,Ni,t,factor)
+%      ft(row,col, list,list)
+test= Ft(1,1,1,1) % 2 lists with three elements with each 3=row*16=col
+test1= Ft(:,:,1,1) % first element of the first list containing 1 matrix with 3*16
+test2= Ft(:,1,1,1) % first column of that element i.e. of 16 columns
+test3= Ft(:,:,:,1)
 
 
 
