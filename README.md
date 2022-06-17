@@ -20,11 +20,15 @@
 - Message Passing Example
 - EFE Precision Updating Example 
 - Simplified Simuloation Script (incomplete, scruffy attempt from last year; changed to vector lists - a lot easier)
+- SimpSimScript.R (incomplete, second attempt 2022)
+- Replication2022.m corresponding Matlab script (goes as far as the SimpSimScript for comparison). 
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
-- > Status: Got to the loop in 2 days, so looking good so far. ones() and zeros() from the pracma package was used, but could replaced.
-  
+- Status: Got to the loop in 2 days, so looking good so far. ones() and zeros() from the pracma package was used, but could replaced.
+- got to VFE, now working on replications of G_epistemic_value() and spm_cross
+- note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
+ 
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
 
