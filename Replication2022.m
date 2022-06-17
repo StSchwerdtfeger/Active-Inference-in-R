@@ -242,24 +242,21 @@ for t = 1:T % loop over time points
                 state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));   
                 % store state_posterior (normalised firing rate) from each epoch of
                 % gradient descent for each tau
-                normalized_firing_rates{factor}(Ni,:,tau,t,policy) = state_posterior{factor}(:,tau,policy); 
+                normalized_firing_rates{factor}(Ni,:,tau,t,policy) = state_posterior{factor}(:,tau,policy);                   
                 % store v (non-normalized log posterior or 'membrane potential') 
                 % from each epoch of gradient descent for each tau
                 prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
+                clear v
             end
         end
+      % variational free energy for each policy (F)
+      Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
+      Fintermediate = squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
+      % store variational fre e energy at last iteration of message passing
+      F(policy,t) = Fintermediate(end);
+      clear Fintermediate
     end
 end
-
-
-
-
-
-
-
-
-
-
 
 %%%%%%%%%%%%%%%% Functions!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
