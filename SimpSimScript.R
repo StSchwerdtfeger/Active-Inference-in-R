@@ -97,7 +97,7 @@ B_norm = function(x){
   bb = x
   z  = colSums(t(bb))     # create normalizing constant from sum of columns
   bb = t(bb/z)            # divide columns by constant
-                       # z is a vector [1] 1 1; using "/" z
+  # z is a vector [1] 1 1; using "/" z
   bb[is.nan(bb)] = 0   # replace NaN with zero (probably not necessary in R)
   b = bb
   return(b)
@@ -158,7 +158,7 @@ spm_wnorm = function(x) { # Start of Function:
   } # End else if
 } # End of Function
 
- 
+
 #######################
 # Simulation Settings #
 #######################
@@ -169,10 +169,10 @@ spm_wnorm = function(x) { # Start of Function:
 # set the 'Gen_model' variable to 2:
 
 Gen_model = 2 # as in the main tutorial code, many parameters 
-              # can be adjusted in the model setup, within the 
-              # explore_exploit_model function [[starting on line 810]]
-              # (Matlab code). This includes, among others (similar to 
-              # in the main tutorial script):
+# can be adjusted in the model setup, within the 
+# explore_exploit_model function [[starting on line 810]]
+# (Matlab code). This includes, among others (similar to 
+# in the main tutorial script):
 
 # prior beliefs about context (d): alter line 876
 # beliefs about hint accuracy in the likelihood (a): alter lines 996-998
@@ -315,7 +315,7 @@ Ns
 A_bhavCont = matrix(c(1,1,     # No Hint
                       0,0,     # Machine-Left Hint
                       0,0),    # Machine-Right Hint
-                        nrow = 3, byrow = TRUE)
+                    nrow = 3, byrow = TRUE)
 
 # Assign to vector list:
 # Alternative to the loop in the Matlab script (line 905, 12.06.2022)
@@ -324,7 +324,7 @@ A[[1]] = c(rep(list(A_bhavCont),Ns[2]))
 
 # TESTGROUND:
 #A[[1]][[4]][1,1] # works!!! Add in double brakets to fixate an element
-                  # and then 
+# and then 
 #A[[1]][[4]]*c(1,2) # Vector and matrix multiplications work fine!!
 
 
@@ -333,12 +333,12 @@ A[[1]] = c(rep(list(A_bhavCont),Ns[2]))
 # state. In this case, the hints are accurate with a probability of pHA. 
 
 pHA = 1 # By default we set this to 1, but try changing its value to 
-        # see how it affects model behavior
+# see how it affects model behavior
 
 A_hintAcc = matrix(c( 0   ,    0   ,   # No Hint
-                     pHA  , (1-pHA),   # Machine-Left Hint
-                   (1-pHA),   pHA) ,   # Machine-Right Hint
-                                 nrow = 3, byrow = TRUE)
+                      pHA  , (1-pHA),   # Machine-Left Hint
+                      (1-pHA),   pHA) ,   # Machine-Right Hint
+                   nrow = 3, byrow = TRUE)
 # Assign to vector list:
 A[[1]][[2]] = A_hintAcc 
 
@@ -349,7 +349,7 @@ A[[1]][[2]] = A_hintAcc
 A_contWL = matrix(c( 1, 1,   # Null
                      0, 0,   # Loss
                      0, 0),  # Win
-                        nrow = 3, byrow = TRUE) 
+                  nrow = 3, byrow = TRUE) 
 # Assign to list:
 # Alt to loop in Matlab script (line 927, 12.06.2022) 
 A[[2]] = c(rep(list(A_contWL),2))
@@ -358,13 +358,13 @@ A[[2]] = c(rep(list(A_contWL),2))
 # probability pWin, which differs depending on the context state (columns):
 
 pWin = .8  # By default we set this to .8, but try changing its value to 
-           # see how it affects model behavior
+# see how it affects model behavior
 
 # Does not need an extra name to be assigned: 
 A[[2]][[3]] = matrix(c(      0   ,     0    ,  # Null        
-                         (1-pWin),   pWin   ,  # Loss
-                           pWin  , (1-pWin)),  # Win
-                                          nrow = 3, byrow = TRUE) 
+                             (1-pWin),   pWin   ,  # Loss
+                             pWin  , (1-pWin)),  # Win
+                     nrow = 3, byrow = TRUE) 
 
 # Choosing the right machine (behavior state 4) generates wins with
 # probability pWin, with the reverse mapping to context states from 
@@ -372,9 +372,9 @@ A[[2]][[3]] = matrix(c(      0   ,     0    ,  # Null
 
 # Assign to list:
 A[[2]][[4]] = matrix(c(    0   ,      0   ,   # Null
-                         pWin  ,  (1-pWin),   # Loss
-                       (1-pWin),    pWin) ,   # Win
-                                      ncol = 2, nrow = 3, byrow = TRUE)
+                           pWin  ,  (1-pWin),   # Loss
+                           (1-pWin),    pWin) ,   # Win
+                     ncol = 2, nrow = 3, byrow = TRUE)
 
 # Finally, we specify an identity mapping between behavior states and
 # observed behaviors, to ensure the agent knows that behaviors were carried
@@ -384,7 +384,7 @@ A_Id = matrix(c(0,0,  # Start
                 0,0,  # Hint
                 0,0,  # Choose-left
                 0,0), # Choose-right
-                  nrow = 4, byrow = TRUE)  
+              nrow = 4, byrow = TRUE)  
 
 # Assign to vector list
 A[[3]] = c(rep(list(A_Id),nrow(A_Id)))
@@ -434,9 +434,9 @@ a[[3]] = lapply(a[[3]],"*", 200)
 
 
 a[[1]][[2]] =  matrix(c(0,     0,    # No Hint
-                      .25,   .25,    # Machine-Left Hint
-                      .25,   .25),   # Machine-Right Hint
-                               nrow = 3, byrow = TRUE)
+                        .25,   .25,    # Machine-Left Hint
+                        .25,   .25),   # Machine-Right Hint
+                      nrow = 3, byrow = TRUE)
 
 
 # Controlled transitions and transition beliefs : B{:,:,u} and b(:,:,u)
@@ -462,8 +462,8 @@ B = c(list())
 B[[1]] = c(rep(list(zeros(2,2)),4))
 
 B[[1]][[1]] = matrix(c(1, 0,   # 'Left Better' Context
-                      0, 1),  # 'Right Better' Context
-                         nrow = 2, byrow = TRUE)
+                       0, 1),  # 'Right Better' Context
+                     nrow = 2, byrow = TRUE)
 
 # For the loop, we have consider B[[1]][] having the same dim as B[[2]][].
 # The reason is that B[[1]] refers to the context state, which is an identity
@@ -494,28 +494,28 @@ B[[2]][[1]] = matrix(c(1, 1, 1, 1,  # Start State
                        0, 0, 0, 0,  # Hint
                        0, 0, 0, 0,  # Choose Left Machine
                        0, 0, 0, 0), # Choose Right Machine
-                               nrow = 4, byrow = TRUE)
+                     nrow = 4, byrow = TRUE)
 
 # Move to the Hint state from any other state
 B[[2]][[2]] = matrix(c(0, 0, 0, 0,  # Start State
                        1, 1, 1, 1,  # Hint
                        0, 0, 0, 0,  # Choose Left Machine
                        0, 0, 0, 0), # Choose Right Machine
-                               nrow = 4, byrow = TRUE)
+                     nrow = 4, byrow = TRUE)
 
 # Move to the Choose Left state from any other state
 B[[2]][[3]] = matrix(c(0, 0, 0, 0,  # Start State
                        0, 0, 0, 0,  # Hint
                        1, 1, 1, 1,  # Choose Left Machine
                        0, 0, 0, 0), # Choose Right Machine
-                             nrow = 4, byrow = TRUE)
+                     nrow = 4, byrow = TRUE)
 
 # Move to the Choose Right state from any other state
 B[[2]][[4]] = matrix(c(0, 0, 0, 0,  # Start State
                        0, 0, 0, 0,  # Hint
                        0, 0, 0, 0,  # Choose Left Machine
                        1, 1, 1, 1), # Choose Right Machine        
-                                 nrow = 4, byrow = TRUE)
+                     nrow = 4, byrow = TRUE)
 
 
 #--------------------------------------------------------------------------
@@ -563,13 +563,13 @@ C[[3]] = c(rep(list(zeros(No[3],Time)),1))
 C[[1]][[1]]      = matrix(c(0, 0, 0,   # Not hint    
                             0, 0, 0,   # Machine-Left Hint
                             0, 0, 0),  # Machine-Left Hint
-                                 nrow = 3, byrow = TRUE)
+                          nrow = 3, byrow = TRUE)
 
 # Wins/Losses
 C[[2]][[1]]      = matrix(c(0, 0, 0,   # Null      
                             0, 0, 0,   # Loss
                             0, 0, 0),  # Win
-                                 nrow = 3, byrow = TRUE)
+                          nrow = 3, byrow = TRUE)
 
 # Observed Behaviors
 
@@ -577,7 +577,7 @@ C[[3]][[1]]      = matrix(c(0, 0, 0,   # Start State
                             0, 0, 0,   # Hint
                             0, 0, 0,   # Choose Left Machine
                             0, 0, 0),  # Choose Right Machine
-                                  nrow = 4, byrow = TRUE)
+                          nrow = 4, byrow = TRUE)
 
 # Then we can specify a 'loss aversion' magnitude (la) at time points 2 
 # and 3, and a 'reward seeking' (or 'risk-seeking') magnitude (rs). 
@@ -592,9 +592,9 @@ rs = 4  # By default we set this to 4, but try changing its value to
 # see how it affects model behavior
 
 C[[2]][[1]] =  matrix(c(0,  0,   0,      # Null
-                       0, -la, -la,     # Loss
-                       0,  rs,  rs/2),  # win
-                                   nrow = 3, byrow = TRUE)
+                        0, -la, -la,     # Loss
+                        0,  rs,  rs/2),  # win
+                      nrow = 3, byrow = TRUE)
 
 #--------------------------------------------------------------------------
 # One can also optionally choose to simulate preference learning by
@@ -630,12 +630,12 @@ V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
 
 V[[1]][[1]]         = matrix(c(1, 1, 1, 1, 1,
                                1, 1, 1, 1, 1), # Context state is not controllable
-                                         nrow = 2, byrow = TRUE)
+                             nrow = 2, byrow = TRUE)
 
 
 V[[1]][[2]]         = matrix(c(1, 2, 2, 3, 4,
                                1, 3, 4, 1, 1), 
-                                         nrow = 2, byrow = TRUE)
+                             nrow = 2, byrow = TRUE)
 
 # For V[[1]][[2]], columns left to right indicate policies allowing: 
 # 1. staying in the start state 
@@ -761,7 +761,7 @@ D = col_norm(D)
 # Set vector list using d: as in the Matlab script, just 
 # outside any loopin'
 d_prior = MDP$d
-  
+
 # MDP$d set just for dimensional reasons
 d_complexity = MDP$d  
 
@@ -771,7 +771,7 @@ for (factor in 1:length(d)){
   # encouraging 'novel' behaviour 
   d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
 } 
- 
+
 d_complexity 
 
 # complexity of a maxtrix concentration parameters
@@ -861,9 +861,9 @@ for(factor in 1: NumFactors){
 
 for(policy in 1:NumPolicies){
   for(factor in 1: NumFactors){
-    state_posterior[[factor]][[policy]] = matrix(0, 
-                                              nrow = NumStates[[factor]],
-                                              ncol = Time)
+    state_posterior[[factor]][[policy]] = matrix(1, 
+                                                 nrow = NumStates[[factor]],
+                                                 ncol = Time)
     state_posterior[[factor]][[policy]] = state_posterior[[factor]][[policy]]/NumStates[[factor]]
   }
 }
@@ -938,38 +938,17 @@ for(factor in 1: NumFactors){
   } # End t
 } # End factor
 
-# Setup list for normalized_firing_rates
-# normalized_firing_rates[[factor]][[policy]][[t]][Ni,]
-normalized_firing_rates = list()
-for(factor in 1: NumFactors){
-  normalized_firing_rates[[factor]] = c(rep(list(),1))
-  for(policy in 1:NumPolicies){
-    normalized_firing_rates[[factor]][[policy]] = c(rep(list(),1))
-    for(t in 1:Time){
-      normalized_firing_rates[[factor]][[policy]][[t]] = c(rep(list(),1))
-      for(tau in 1:Time){
-        normalized_firing_rates[[factor]][[policy]][[t]][[tau]] = c(rep(list(),1))
-        for(Ni in 1:NumIterations){
-          normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = c(rep(list(),1))
-          normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = matrix(0,nrow=1, ncol=nrow(state_posterior[[factor]][[1]]))
-        } # End Ni
-      } # End tau
-    } # End t
-  } # End policy
-} # End factor
-
-# Setup list prediction_errors equivalent to normalized_firing_rates
-prediction_error = normalized_firing_rates
-
 # List for prediction error and normalized_firign_rates
 # prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
-prediction_error1 = list()
+prediction_error = list()
 for(factor in 1:NumFactors){
-  prediction_error1[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
+  prediction_error[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
 }
-normalized_firing_rates1=prediction_error1
+normalized_firing_rates=prediction_error
 
 
+vv= state_posterior
+#state_posterior=vv
 ### Adjustments for testing:
 ###
 chosen_action = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
@@ -1022,8 +1001,8 @@ for (t in 1:Time){  # loop over time points
       for (factor in 1:NumFactors){
         # initialise matrix containing the log likelihood of observations:
         lnAo = rep(list(matrix(0, nrow = nrow(state_posterior[[factor]][[1]]), 
-                                  ncol = ncol(state_posterior[[factor]][[1]]))), 
-                                length(state_posterior[[factor]]))
+                               ncol = ncol(state_posterior[[factor]][[1]]))), 
+                   length(state_posterior[[factor]]))
         for (tau in 1:Time){ # loop over tau
           # convert approximate posteriors into depolarisation variable v
           v_depolarization = nat_log(state_posterior[[factor]][[policy]][,tau])
@@ -1065,45 +1044,32 @@ for (t in 1:Time){  # loop over time points
             lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
             lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           }
+          
+        } # End loop tau
+        # variational free energy at each time point
+        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
         # here we both combine the messages and perform a gradient
         # descent on the posterior.
         v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
-        # variational free energy at each time point
-        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
-        #normalized_firing_rates1[[factor,t,tau,policy,Ni]] = t(state_posterior[[factor]][[policy]][,tau])
         # update state_posterior running v through a softmax:
-        state_posterior[[factor]][[policy]][,tau] = softmax(t(v_depolarization))#t(exp(v_depolarization)/sum(exp(v_depolarization))) #softmax(v_depolarization) # 
+        state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
         # store state_posterior (normalised firing rate) from each epoch of
         # gradient descent for each tau
-        normalized_firing_rates[[factor]][[policy]][[t]][[tau]][[Ni]] = state_posterior[[factor]][[policy]][,tau]
-        normalized_firing_rates1[[factor]][[1]][Ni,,tau,t,policy] = state_posterior[[factor]][[policy]][,tau]
+        normalized_firing_rates[[factor]][[1]][Ni,,tau,t,policy] = state_posterior[[factor]][[policy]][,tau]
         # store v (non-normalized log posterior or 'membrane potential') 
         # from each epoch of gradient descent for each tau
-        prediction_error[[factor]][[policy]][[t]][[tau]][[Ni]] = as.vector(v_depolarization)
-        prediction_error1[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
-        } # End loop tau.  ##### NOTE: Matlabscript different, as loop ends before secend appearence of v_depolarization
+        prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
       } # End loop factor
     } # End loop Ni
   } # End loop policies
 } # End loop Time
-
-# Still unknown issues with Ft, when factor == 2
                 
-# RESET/RE-INITILIZE State_posterior for simple re-rung of the loop only
-for(policy in 1:NumPolicies){
-  for(factor in 1: NumFactors){
-    state_posterior[[factor]][[policy]] = matrix(0, 
-                                                 nrow = NumStates[[factor]],
-                                                 ncol = Time)
-    state_posterior[[factor]][[policy]] = state_posterior[[factor]][[policy]]/NumStates[[factor]]
-  }
-}
-
-
-# From now no simple RE-RUN of the loop is not possible anymore possible,
-# as some lists have to pre-set again first. 
-# I also used two different kinds of lists for prediction_error and normalized_firing_rates
-# I will probably completly switch to arrays of that form, equivalent to Matlab - will see. 
-             
+                
+# Had some issues with the script and went a few steps back. But it is ok again. Must have changed something and forget about it.
+# I am happy that I update this twice a day and was able to use the history, otherwise I might have gotten lost in overchanging the script. Evil...
+                
+                
+                
+                
                 
                 
