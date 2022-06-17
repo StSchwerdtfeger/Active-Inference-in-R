@@ -122,6 +122,9 @@ md_dot = function (A,s,f){
   }
 }
 
+# Select last element of a vector, or 1D matrix:
+last <- function(x) { return( x[[length(x)]] ) }
+
 
 #################
 # SPM Functions #
@@ -929,14 +932,16 @@ for (i in 1:length(A)){
 }
 
 # Setup vector list for Ft
-#Ft[[factor]][[t]][tau,Ni] - the matrix [tau,Ni] itself does not need
+# Ft[[1]][tau,Ni,t,factor]
 Ft = list()
-for(factor in 1: NumFactors){
-  Ft[[factor]] = c(rep(list(),1))
-  for(t in 1:Time){
-    Ft[[factor]][[t]] = matrix(0,nrow=Time, ncol=NumIterations)
-  } # End t
-} # End factor
+Ft <- c(rep(list(array(0, c(Time,NumIterations, Time,NumFactors)))))
+
+# List for VFE:
+VFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
+
+# List for Fintermediate:
+#Fintermediate <- c(rep(list(array(0, c(NumIterations, Time)))))
+
 
 # List for prediction error and normalized_firign_rates
 # prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
@@ -945,6 +950,7 @@ for(factor in 1:NumFactors){
   prediction_error[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
 }
 normalized_firing_rates=prediction_error
+
 
 
 vv= state_posterior
@@ -1046,11 +1052,11 @@ for (t in 1:Time){  # loop over time points
           }
           
         } # End loop tau
-        # variational free energy at each time point
-        Ft[[factor]][[t]][tau,Ni] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
         # here we both combine the messages and perform a gradient
         # descent on the posterior.
         v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
+        # variational free energy at each time point
+        Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
         # update state_posterior running v through a softmax:
         state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
         # store state_posterior (normalised firing rate) from each epoch of
@@ -1061,15 +1067,14 @@ for (t in 1:Time){  # loop over time points
         prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
       } # End loop factor
     } # End loop Ni
+    # variational free energy for each policy (F)
+    Fintermediate = rowSums(Ft[[1]],dims=3)            # sum over hidden state factors (Fintermediate is an intermediate F value)
+    Fintermediate1 = colSums(Fintermediate,dims=1)     # sum over tau and squeeze into 16x3 matrix (squeeze here in R not needed)
+    # store variational free energy at last iteration of message passing
+    VFE[[1]][policy,t] = last(Fintermediate1[,t])
   } # End loop policies
 } # End loop Time
+
                 
-                
-# Had some issues with the script and went a few steps back. But it is ok again. Must have changed something and forget about it.
-# I am happy that I update this twice a day and was able to use the history, otherwise I might have gotten lost in overchanging the script. Evil...
-                
-                
-                
-                
-                
+# Now works up to VFE, i.e., F(policy,t) in Matlab.
                 
