@@ -1,5 +1,7 @@
 
-% Replication attempt 06.2022
+% Replication attempt 06.2022. 
+
+%%%%% Corresponds to the Simp Sim Script
 
 rng('shuffle')
 close all
@@ -256,8 +258,58 @@ for t = 1:T % loop over time points
       F(policy,t) = Fintermediate(end);
       clear Fintermediate
     end
+    % expected free energy (G) under each policy
+    %----------------------------------------------------------------------
+    
+    % initialize intermediate expected free energy variable (Gintermediate) for each policy
+    Gintermediate = zeros(NumPolicies,1);  
+    % policy horizon for 'counterfactual rollout' for deep policies (described below)
+    horizon = T;
+    % loop over policies
+    for policy = 1:NumPolicies
+        
+        % Bayesian surprise about 'd'
+        if isfield(MDP,'d')
+            for factor = 1:NumFactors
+                Gintermediate(policy) = Gintermediate(policy) - d_complexity{factor}'*state_posterior{factor}(:,1,policy);
+            end 
+        end
+        % This calculates the expected free energy from time t to the
+        % policy horizon which, for deep policies, is the end of the trial T.
+        % We can think about this in terms of a 'counterfactual rollout'
+        % that asks, "what policy will best resolve uncertainty about the 
+        % mapping between hidden states and observations (maximize
+        % epistemic value) and bring about preferred outcomes"?
+   
+        for timestep = t:horizon
+            % grab expected states for each policy and time
+            for factor = 1:NumFactors
+                Expected_states{factor} = state_posterior{factor}(:,timestep,policy);
+            end 
+            % calculate epistemic value term (Bayesian Surprise) and add to
+            % expected free energy
+         
+             Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
+             %testo(policy) = G_epistemic_value(a(:),Expected_states(:))
+              %for modality = 1:NumModalities
+                % prior preferences about outcomes
+               % predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
+                %Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
+              %end
+        end
+    end
+           G(:,t) = Gintermediate;
+  
 end
 
+
+test1 = G_epistemic_valueTEST(a(:), Expected_states(:))
+po=1
+isnumeric(po)
+test2 = spm_cross(po,a{1}(:,1))
+test3 = spm_cross(test2,a{1}(:,1))
+
+test3(1)
 %%%%%%%%%%%%%%%% Functions!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 % normalise vector columns
@@ -294,8 +346,190 @@ elseif f == 2
 end 
 end
 
+% epistemic value term (Bayesian surprise) in expected free energy 
+function G = G_epistemic_value(A,s)
+    
+% auxiliary function for Bayesian suprise or mutual information
+% FORMAT [G] = spm_MDP_G(A,s)
+%
+% A   - likelihood array (probability of outcomes given causes)
+% s   - probability density of causes
+
+% Copyright (C) 2005 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_MDP_G.m 7306 2018-05-07 13:42:02Z karl $
+
+% probability distribution over the hidden causes: i.e., Q(s)
+
+qx = spm_cross(s); % this is the outer product of the posterior over states
+                   % calculated with respect to itself
+
+% accumulate expectation of entropy: i.e., E[lnP(o|s)]
+G     = 0;
+qo    = 0;
+for i = find(qx > exp(-16))'
+    % probability over outcomes for this combination of causes
+    po   = 1;
+    for g = 1:numel(A)
+        po = spm_cross(po,A{g}(:,i));
+    end
+    po = po(:);
+    qo = qo + qx(i)*po;
+    G  = G  + qx(i)*po'*nat_log(po);
+end
+
+% subtract entropy of expectations: i.e., E[lnQ(o)]
+G  = G - qo'*nat_log(qo);
+    
+end 
 
 
+% epistemic value term (Bayesian surprise) in expected free energy 
+function qo = G_epistemic_valueTEST(A,s)
+    
+% auxiliary function for Bayesian suprise or mutual information
+% FORMAT [G] = spm_MDP_G(A,s)
+%
+% A   - likelihood array (probability of outcomes given causes)
+% s   - probability density of causes
+
+% Copyright (C) 2005 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_MDP_G.m 7306 2018-05-07 13:42:02Z karl $
+
+% probability distribution over the hidden causes: i.e., Q(s)
+
+qx = spm_cross(s); % this is the outer product of the posterior over states
+                   % calculated with respect to itself
+%test = find(qx > exp(-16))'
+% accumulate expectation of entropy: i.e., E[lnP(o|s)]
+G     = 0;
+qo    = 0;
+for i = find(qx > exp(-16))'
+    % probability over outcomes for this combination of causes
+    po   = 1;
+    for g = 1:numel(A)
+        po = spm_cross(po,A{g}(:,i));
+    end
+    po = po(:);
+    qo = qo + qx(i)*po;
+   %G  = G  + qx(i)*po'*nat_log(po);
+end
+
+% subtract entropy of expectations: i.e., E[lnQ(o)]
+%G  = G - qo'*nat_log(qo);
+    
+end 
+
+
+
+
+function [Y] = spm_cross(X,x,varargin)
+% Multidimensional outer product
+% FORMAT [Y] = spm_cross(X,x)
+% FORMAT [Y] = spm_cross(X)
+%
+% X  - numeric array
+% x  - numeric array
+%
+% Y  - outer product
+%
+% See also: spm_dot
+% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
+
+% handle single inputs
+if nargin < 2
+    if isnumeric(X)
+        Y = X;
+    else
+        Y = spm_cross(X{:});
+    end
+    return
+end
+
+% handle cell arrays
+
+if iscell(X), X = spm_cross(X{:}); end
+if iscell(x), x = spm_cross(x{:}); end
+
+% outer product of first pair of arguments (using bsxfun)
+A = reshape(full(X),[size(X) ones(1,ndims(x))]);
+B = reshape(full(x),[ones(1,ndims(X)) size(x)]);
+Y = squeeze(bsxfun(@times,A,B));
+
+% and handle remaining arguments
+for i = 1:numel(varargin)
+    Y = spm_cross(Y,varargin{i});
+end
+end 
+
+%--------------------------------------------------------------------------
+function [Y] = spm_crossTEST(X,x,varargin)    % TESTS for single input behavior
+% Multidimensional outer product
+% FORMAT [Y] = spm_cross(X,x)
+% FORMAT [Y] = spm_cross(X)
+%
+% X  - numeric array
+% x  - numeric array
+%
+% Y  - outer product
+%
+% See also: spm_dot
+% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
+
+% handle single inputs
+if nargin < 2  % NUMBER OF INPUT ELEMENTS = nargin
+    %if isnumeric(X)  % NOT   as cell array input for X is SO FAR not numeric
+    %    Y = X;       % NOT     does not work if the y in else is of and
+                      %         this is on only with return
+   %else              % NOT
+        Y = spm_crossTEST(X{:});
+   %end               % NOT
+   return % MUST!!!   % this part might not benecessary after all? To this extend at least? logic still not fully clear to me
+%                     % what happens with Y here, if it is again just nargin 1?
+end
+
+% handle cell arrays
+
+%if iscell(X), X = spm_crossTEST(X{:}); end   % using just X= spm_cross(X) .... does not work, needed as we got if above!
+%if iscell(x), x = spm_crossTEST(x{:}); end   % x = first input of g_epistemic value!! = a(:)
+
+% outer product of first pair of arguments (using bsxfun)
+A = reshape(full(X),[size(X) ones(1,ndims(x))]);  % ALL IN
+B = reshape(full(x),[ones(1,ndims(X)) size(x)]);  % in
+Y = squeeze(bsxfun(@times,A,B));                   % in  
+
+% and handle remaining arguments
+for i = 1:numel(varargin)
+    Y = spm_crossTEST(Y,varargin{i});  % this only works as well, when nargin part is up and rest muted...
+end                               % + when setting vargin{i} to 1
+end                                % what happens is that this 1 will become x within fun(X,x) and is therefore
+                                   % entering the function again in the
+                                   % nargin part!!!!
+
+function X = cell_md_dot(X,x)
+% initialize dimensions
+DIM = (1:numel(x)) + ndims(X) - numel(x);
+
+% compute dot product using recursive sums (and bsxfun)
+for d = 1:numel(x)
+    s         = ones(1,ndims(X));
+    s(DIM(d)) = numel(x{d});
+    X         = bsxfun(@times,X,reshape(full(x{d}),s));
+    X         = sum(X,DIM(d));
+end
+
+% eliminate singleton dimensions
+X = squeeze(X);
+end 
 
 function MDP = explore_exploit_model(Gen_model)
 
