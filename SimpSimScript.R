@@ -59,6 +59,11 @@ nat_log = function (x) {
   log(x+exp(-16))
 }
 
+# Isfield function, Matlab-Style
+isfield  <- function(structure, field){
+  any(field %in% names(structure) )
+} #################################################################################################### Forgot I have this, will re-write some of the lines to fit Matlab script.
+
 # Replication of the gradient function Matlab-Style
 # for calcualting the 1D numerical gradient.  
 # Alternative use function with same name via library("pracma")
@@ -86,7 +91,6 @@ gradient = function (x) {
 
 # Normalizing vectors. So far this seems to be enough in R
 # Compare with Matlab code for col_norm(B). 
-# So far I used the same function for B_norm() in the Matlab script. 
 col_norm = function(x){
   lapply(x,lapply, function(x)(t(t(x)/colSums(x))))
 }
@@ -103,16 +107,16 @@ B_norm = function(x){
   return(b)
 }
 
-# used to only keep those values in a list that are greater than zero 
-# refers to line 104 in the Matlab script:
+# GreaterZero is used to only keep those values in a list that are 
+# greater than zero refers to line 104 in the Matlab script:
 GreaterZero = function(x){
   TrueGreatZero = function(x){x>0}
-  checkLogic = lapply(x,TrueGreatZero) # Works both!
+  checkLogic = lapply(x,TrueGreatZero) 
   trueISone = function(x){ x = x*1}
   checkNum = lapply(checkLogic,trueISone)
 }
 
-# dot product along dimension f (maybe %*%?)
+# dot product along dimension f 
 md_dot = function (A,s,f){ 
   if (f == 1){
     B = t(A)%*%s 
@@ -125,6 +129,43 @@ md_dot = function (A,s,f){
 # Select last element of a vector, or 1D matrix:
 last <- function(x) { return( x[[length(x)]] ) }
 
+# Replicates the nargin Matlab function in R (nargin in this form only for
+# 2 as max function inputs; needs adjustment to be generalized for any 
+# input length (in case needed..). Full example: https://stackoverflow.com/questions/64422780/nargin-function-in-r-number-of-function-inputs
+# Note: has to be called inside a function. See NARGIN_TEST below for an 
+# example.
+nargin <- function() {
+  if(sys.nframe()<2) stop("must be called from inside a function")
+  length(as.list(sys.call(-1)))-1
+}
+
+# NARGIN Example for max of 2 inputs
+NARGIN_TEST = function (x,y){
+  if(nargin()==2) {
+    z=x+1
+  }
+  else if (nargin()==1) {
+    y=0
+    z=x+y
+  }
+  else { # For no input
+    y=0
+    x=0
+    z = y+x 
+  }
+  return(z)
+}
+
+# Modified  reshape function, obtained from getAnywhere(reshape), given package pracma
+reshapePRACmod = function (a, n, m)  # modified reshape; the whole reshape is probably not necessary at all
+{ n = n[[1]]; m = m[[1]];
+if (missing(m)) 
+  m <- length(a)%/%n
+if (length(a) != n * m) 
+stop("Matrix 'a' does not have n*m elements")
+dim(a) <- c(n, m)
+return(a)
+}
 
 #################
 # SPM Functions #
@@ -152,14 +193,85 @@ spm_wnorm = function(x) { # Start of Function:
   else{
     x   = lapply(x,"+", exp(-16))
     for(i in 1:length(x)){
-      A = 1/colSums(x[[i]]) # Correct up to here! Matlab:  1./sum(A,1)
+      A = 1/colSums(x[[i]]) # Matlab:  1./sum(A,1)
       B = 1/x[[i]]
-      x2 =  (A-B)/2 #lapply(X2,"-",X3)
+      x2 =  (A-B)/2         # Alternative? lapply(X2,"-",X3)
       x[[i]] = x2
     } # End of loop
-    x=x # Necessary to assign the values obtained from the loop!
+    x = x # Necessary to assign the values obtained from the loop!
   } # End else if
 } # End of Function
+
+spm_cross = function(X,x){ # Start of function; depends on the functions nargin() and reshapePRACmod(a,n,m)
+  if (nargin()<2){
+    x = X[[2]] # Set x first, otherwise X gets set before x is set, which
+    X = X[[1]] # leads to error in dimensions...
+  
+    # For reshape:
+    SIZE_X = c(length(X), ndims(X)) # Workaround for the Matlab size function
+    SIZE_x = c(length(x), ndims(x)) # 
+    ONES_X_m = matrix(1,c(SIZE_X))  # Workaround for Matlab ones(1,ndims(X(:)))
+    ONES_x_m = matrix(1,c(SIZE_x))  # 
+  
+    A = reshapePRACmod(X, SIZE_X, ONES_x_m)
+    B = reshapePRACmod(x, ONES_X_m, SIZE_x)
+    Y = A%*%B
+  } # End if nargin <2
+  else if (nargin()==2){ # Start else if
+    if(is.list(x)){
+      x = as.matrix(spm_cross(x))  
+    } # End if list
+    if(is.list(X)){
+      X = as.matrix(spm_cross(X))
+    } # End if list
+      # For reshape:
+      SIZE_X = c(length(X), ndims(X)) # Workaround for the Matlab size function
+      SIZE_x = c(length(x), ndims(x)) # 
+      ONES_X_m = matrix(1,c(SIZE_X))  # Workaround for Matlab ones(1,ndims(X(:)))
+      ONES_x_m = matrix(1,c(SIZE_x))  # 
+      A = reshapePRACmod(X, SIZE_X, ONES_x_m)
+      B = reshapePRACmod(x, ONES_X_m, SIZE_x)
+    if(is.numeric(X)){  
+      Y = lapply(A,"%*%",B)
+      Y = t(as.matrix(Y[[1]]))
+    } # End if numeric
+    else{
+      Y = lapply(A,"%*%",B)
+      Y = array(as.numeric(unlist(Y)), dim = c( nrow(X),ncol(x), nrow(X), ncol(x) ))  
+    } # End else
+  } # End if nargin == 2
+} # End of function
+
+# epistemic value term (Bayesian surprise) in expected free energy 
+G_epistemic_value = function(X1,X2) {
+  # Relist X1 Input:
+  X1arr = list()
+  for(i in 1:length(X1)){
+    X1arr[[i]] = array(as.numeric(unlist(X1[[i]])), dim = c(nrow(X1[[i]][[1]]),(ncol(X1[[i]][[1]])*length(X1[[i]])) ))  
+  }
+  # probability distribution over the hidden causes: i.e., Q(s)
+  qx = spm_cross(X2) # this is the outer product of the posterior over states
+                     # calculated with respect to itself
+  
+  # accumulate expectation of entropy: i.e., E[lnP(o|s)]
+  G     = 0
+  qo    = 0
+  
+  find = which(qx > exp(-16)) # replicates the Matlab loop
+ 
+  for (i in find){
+    # probability over outcomes for this combination of causes
+    po = matrix(c(1))
+    for (g in 1:length(X1)){
+      po = spm_cross(po,X1arr[[g]][,i]) # X1arr needed here
+    }  
+    qo = qo + qx[[i]]*po
+    G = G + qx[[i]]*po*nat_log(po)
+  }
+  # subtract entropy of expectations: i.e., E[lnQ(o)]
+  G  = G - qo*nat_log(qo)
+  G = G[[1]] # Only the first value is used (compare Matlab; not sure why)
+} # End of function G_epistemic_value
 
 
 #######################
@@ -939,9 +1051,11 @@ Ft <- c(rep(list(array(0, c(Time,NumIterations, Time,NumFactors)))))
 # List for VFE:
 VFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
 
-# List for Fintermediate:
-#Fintermediate <- c(rep(list(array(0, c(NumIterations, Time)))))
+# List for VFE:
+EFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
 
+# Set up list for Expected states:
+Expected_states = rep(list(0),NumFactors)
 
 # List for prediction error and normalized_firign_rates
 # prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
@@ -949,12 +1063,9 @@ prediction_error = list()
 for(factor in 1:NumFactors){
   prediction_error[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
 }
-normalized_firing_rates=prediction_error
+# Normalized firing rates is simply obtained by:
+normalized_firing_rates = prediction_error
 
-
-
-vv= state_posterior
-#state_posterior=vv
 ### Adjustments for testing:
 ###
 chosen_action = matrix(c(1,1,1,1), ncol = 2, nrow = 2, byrow = TRUE)
@@ -1073,8 +1184,50 @@ for (t in 1:Time){  # loop over time points
     # store variational free energy at last iteration of message passing
     VFE[[1]][policy,t] = last(Fintermediate1[,t])
   } # End loop policies
-} # End loop Time
+  
+  # expected free energy (G) under each policy
+  #----------------------------------------------------------------------
+  
+  # initialize intermediate expected free energy variable (Gintermediate) for each policy
+  Gintermediate = matrix(0,NumPolicies,1)
+  
+  # policy horizon for 'counterfactual rollout' for deep policies (described below)
+  horizon = Time
+  
+  # loop over policies
+  for (policy in 1:NumPolicies){
+    
+    # Bayesian surprise about 'd'
+    for (factor in 1:NumFactors){
+      Gintermediate[[policy]] = Gintermediate[[policy]] - t(d_complexity[[factor]][[1]])%*%state_posterior[[factor]][[policy]][,1]
+    } # End for factor   
+    
+    # This calculates the expected free energy from time t to the
+    # policy horizon which, for deep policies, is the end of the trial T.
+    # We can think about this in terms of a 'counterfactual rollout'
+    # that asks, "what policy will best resolve uncertainty about the 
+    # mapping between hidden states and observations (maximize
+    # epistemic value) and bring about preferred outcomes"?
+    for (timestep in t:horizon){
+      # grab expected states for each policy and time
+      for (factor in 1:NumFactors){
+        Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
+      } # End for factor
+      
+      # calculate epistemic value term (Bayesian Surprise) and add to
+      # expected free energy
+      Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
+      
+    } # End for horizon
+  } # End for policy
+  EFE[[1]][,t] = Gintermediate
+} # End for Time
 
+EFE
+                              
+               
                 
-# Now works up to VFE, i.e., F(policy,t) in Matlab.
+                
+                
+
                 
