@@ -1,7 +1,7 @@
 
-% Replication attempt 06.2022. 
-
+% Replication attempt 06.2022
 %%%%% Corresponds to the Simp Sim Script
+
 
 rng('shuffle')
 close all
@@ -291,25 +291,17 @@ for t = 1:T % loop over time points
          
              Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
              %testo(policy) = G_epistemic_value(a(:),Expected_states(:))
-              %for modality = 1:NumModalities
+              for modality = 1:NumModalities
                 % prior preferences about outcomes
-               % predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
+                predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
                 %Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
-              %end
+              end
         end
     end
            G(:,t) = Gintermediate;
   
 end
 
-
-test1 = G_epistemic_valueTEST(a(:), Expected_states(:))
-po=1
-isnumeric(po)
-test2 = spm_cross(po,a{1}(:,1))
-test3 = spm_cross(test2,a{1}(:,1))
-
-test3(1)
 %%%%%%%%%%%%%%%% Functions!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 % normalise vector columns
