@@ -28,7 +28,7 @@
 # Libraries #
 #############
 
-library(pracma)
+library(pracma) # Check if necessary (change ones(), zeros() into matrix(1,n,m), matrix(0, n, m))
 
 
 #############
@@ -157,15 +157,36 @@ NARGIN_TEST = function (x,y){
 }
 
 # Modified  reshape function, obtained from getAnywhere(reshape), given package pracma
-reshapePRACmod = function (a, n, m)  # modified reshape; the whole reshape is probably not necessary at all
-{ n = n[[1]]; m = m[[1]];
-if (missing(m)) 
-  m <- length(a)%/%n
-if (length(a) != n * m) 
-stop("Matrix 'a' does not have n*m elements")
-dim(a) <- c(n, m)
-return(a)
+reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
+  n = n[[1]]; m = m[[1]];
+  if (missing(m)) 
+    m <- length(a)%/%n
+  if (length(a) != n * m) 
+    stop("Matrix 'a' does not have n*m elements")
+  dim(a) <- c(n, m)
+  return(a)
 }
+
+
+cell_md_dot = function(X,x){
+  # Convert X to column binded version, similar to G_epistemic_value 
+  Xdim = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
+  
+  # Initialize dimension
+  # DIM = rev(as.matrix(c(1:length(Xdim)) + length(x) - length(Xdim)))
+  # Dim vector has to be reversed via rev()
+  DIM = rev(as.matrix(c(1:length(Xdim)) + length(x) - length(Xdim)))
+  
+  # Compute dot product using recursive sums
+  # To do so, we first do all the reshaping:
+  for (d in 1:length(x)){ # Re-shape
+    s = matrix(1, ndims(Xdim))
+    s[[DIM[[d]]]] = length(x[[d]])  
+    X = apply(array(as.numeric(unlist(x[[d]])), s), FUN=sum, MARGIN = DIM[[d]])
+  }
+  X = as.matrix(X)
+}
+
 
 #################
 # SPM Functions #
@@ -553,6 +574,13 @@ a[[1]][[2]] =  matrix(c(0,     0,    # No Hint
                         .25,   .25),   # Machine-Right Hint
                       nrow = 3, byrow = TRUE)
 
+# Needed for cell_md_dot(), where the input for X = a[[1]]. In Matlab
+# Entering a function with a{1} will still give you the number of i=a[[i]]
+# In R we will loose this information, entering with a[[1]]. I will
+# write the function, such that one enters three inputs (a[[1]], Expect_states, a),
+# such that the numel(a{1}) is equivalent to length(a). I will still 
+# assign the item outside the function to make aware of this circumstance.
+Numel_a = length(a)
 
 # Controlled transitions and transition beliefs : B{:,:,u} and b(:,:,u)
 #==========================================================================
@@ -1218,16 +1246,20 @@ for (t in 1:Time){  # loop over time points
       # expected free energy
       Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
       
+      for (modality in 1:NumModalities){
+        # prior preference over outcomes
+        predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
+      }
+      
     } # End for horizon
   } # End for policy
+  # store expected free energy for each time point and clear intermediate
+  # variable
   EFE[[1]][,t] = Gintermediate
 } # End for Time
 
 EFE
-                              
-               
-                
-                
-                
+VFE
+predictive_observations_posterior
 
-                
+
