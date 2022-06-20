@@ -28,10 +28,9 @@ Outdated:
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
-- Status: Got to the loop in 2 days, so looking good so far. ones() and zeros() from the pracma package was used, but could replaced.
-- got to EFE, replicated spm_cross and G_epistemic value, and found functions for nargin, modified the pracma reshape function... 
-  Most of the functions in the script shouldn't be that challenging, but replicating the plotting routines will take a few days, I guess.
 - Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
+- I will probably switch to using arrays for the most of the script, but leave it for now (change has a lot of impact on the script, so Ill do it later)
+- going well so far, but plotting routines will probably be more difficult to reproduce, will see. Some of the functions can be improved as well. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
