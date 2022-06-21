@@ -2,14 +2,66 @@
 % Replication attempt 06.2022
 %%%%% Corresponds to the Simp Sim Script
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%-- Simplified Simulation Script --%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Supplementary Code for: A Step-by-Step Tutorial on Active Inference Modelling and its 
+% Application to Empirical Data
+
+% By: Ryan Smith, Karl J. Friston, Christopher J. Whyte
 
 rng('shuffle')
 close all
 clear
 
-Gen_model = 2
+% This code simulates a single trial of the explore-exploit task introduced 
+% in the active inference tutorial using a stripped down version of the model
+% inversion scheme implemented in the spm_MDP_VB_X.m script. 
+
+% Note that this implementation uses the marginal message passing scheme
+% described in (Parr et al., 2019), and will return very slightly 
+% (negligably) different values than the spm_MDP_VB_X.m script in 
+% simulation results.
+
+% Parr, T., Markovic, D., Kiebel, S., & Friston, K. J. (2019). Neuronal 
+% message passing using Mean-field, Bethe, and Marginal approximations. 
+% Scientific Reports, 9, 1889.
+
+%% Simulation Settings
+
+% To simulate the task when prior beliefs (d) are separated from the 
+% generative process, set the 'Gen_model' variable directly
+% below to 1. To do so for priors (d), likelihoods (a), and habits (e), 
+% set the 'Gen_model' variable to 2:
+
+Gen_model = 2; % as in the main tutorial code, many parameters can be adjusted
+               % in the model setup, within the explore_exploit_model
+               % function starting on line 810. This includes, among
+               % others (similar to in the main tutorial script):
+
+% prior beliefs about context (d): alter line 866
+
+% beliefs about hint accuracy in the likelihood (a): alter lines 986-988
+
+% to adjust habits (e), alter line 1145
+
+%% Specify Generative Model
 
 MDP = explore_exploit_model(Gen_model);
+
+% Model specification is reproduced at the bottom of this script (starting 
+% on line 810), but see main tutorial script for more complete walk-through
+
+%% Model Inversion to Simulate Behavior
+%==========================================================================
+
+% Normalize generative process and generative model
+%--------------------------------------------------------------------------
+
+% before sampling from the generative process and inverting the generative 
+% model we need to normalize the columns of the matrices so that they can 
+% be treated as a probability distributions
 
 % generative process
 A = MDP.A;         % Likelihood matrices
@@ -22,7 +74,6 @@ beta = MDP.beta;   % Expected free energy precision
 alpha = MDP.alpha; % Action precision
 eta = MDP.eta;     % Learning rate
 omega = MDP.omega; % Forgetting rate
-
 
 A = col_norm(A);
 B = col_norm(B);
@@ -38,7 +89,6 @@ NumFactors = MDP.NumFactors;   % Number of state factors
 %--------------------------------------------------------------------------
 
 % 'complexity' of d vector concentration paramaters
-
 if isfield(MDP,'d')
     for factor = 1:numel(MDP.d)
         % store d vector values before learning
@@ -57,7 +107,11 @@ if isfield(MDP,'a')
         a_prior{modality} = MDP.a{modality};
         a_complexity{modality} = spm_wnorm(a_prior{modality}).*(a_prior{modality} > 0);
     end
-end 
+end  
+
+
+% Normalise matrices before model inversion/inference
+%--------------------------------------------------------------------------
 
 % normalize A matrix
 if isfield(MDP,'a')
@@ -80,8 +134,6 @@ for ii = 1:numel(C)
         C{ii}(:,t) = nat_log(exp(C{ii}(:,t))/sum(exp(C{ii}(:,t))));
     end 
 end 
-
-
 
 % normalize D vector
 if isfield(MDP,'d')
@@ -109,8 +161,6 @@ end
 NumModalities = numel(a);                    % number of outcome factors
 NumFactors = numel(d);                       % number of hidden state factors
 NumPolicies = size(V,2);                     % number of allowable policies
-
-test= size(b{1},3)
 for factor = 1:NumFactors
     NumStates(factor) = size(b{factor},1);   % number of hidden states
     NumControllable_transitions(factor) = size(b{factor},3); % number of hidden controllable hidden states for each factor (number of B matrices)
@@ -125,25 +175,22 @@ for policy = 1:NumPolicies
     end  
 end 
 
-
-
 % initialize the approximate posterior over policies as a flat distribution 
 % over policies at each time point
 policy_posteriors = ones(NumPolicies,T)/NumPolicies; 
 
 % initialize posterior over actions
-chosen_action = zeros(ndims(B),T-1);
-test=ones(1,T-1)
- 
+%chosen_action = zeros(ndims(B),T-1);
+chosen_action = ones(ndims(B),T-1);
+    
 % if there is only one policy
 for factors = 1:NumFactors 
     if NumControllable_transitions(factors) == 1
         chosen_action(factors,:) = ones(1,T-1);
     end
 end
-%MDP.chosen_action = chosen_action;
-chosen_action = [1 1 ; 1 1] 
 MDP.chosen_action = chosen_action;
+
 % initialize expected free energy precision (beta)
 posterior_beta = 1;
 gamma(1) = 1/posterior_beta; % expected free energy precision
@@ -151,8 +198,6 @@ gamma(1) = 1/posterior_beta; % expected free energy precision
 % message passing variables
 TimeConst = 4; % time constant for gradient descent
 NumIterations  = 16; % number of message passing iterations
-
-
 
 % Lets go! Message passing and policy selection 
 %--------------------------------------------------------------------------
@@ -178,12 +223,14 @@ for t = 1:T % loop over time points
         elseif t>1
             prob_state = B{factor}(:,true_states(factor,t-1),MDP.chosen_action(factor,t-1));
         end 
-            true_states(factor,t) = find(cumsum(prob_state)>= rand,1);
+        true_states(factor,t) = find(cumsum(prob_state)>= rand,1);
     end 
-        % sample observations
+
+    % sample observations
     for modality = 1:NumModalities % loop over number of outcome modalities
         outcomes(modality,t) = find(cumsum(a{modality }(:,true_states(1,t),true_states(2,t)))>=rand,1);
     end
+    
     % express observations as a structure containing a 1 x observations 
     % vector for each modality with a 1 in the position corresponding to
     % the observation recieved on that trial
@@ -203,13 +250,12 @@ for t = 1:T % loop over time points
             for factor = 1:NumFactors
             lnAo = zeros(size(state_posterior{factor})); % initialise matrix containing the log likelihood of observations
                 for tau = 1:T % loop over tau
-                    v_depolarization = nat_log(state_posterior{factor}(:,tau,policy)); % convert approximate posteriors into depolarisation variable v
-                    vv{factor}(:,tau,policy) = v_depolarization
+                    v_depolarization = nat_log(state_posterior{factor}(:,tau,policy)); % convert approximate posteriors into depolarisation variable v 
                     if tau<t+1 % Collect an observation from the generative process when tau <= t
                         for modal = 1:NumModalities % loop over observation modalities
                             % this line uses the observation at each tau to index
                             % into the A matrix to grab the likelihood of each hidden state
-                            lnA = permute(nat_log(a{modal}(outcomes(modal,tau),:,:,:,:,:)),[2 3 4 5 6 1]);
+                            lnA = permute(nat_log(a{modal}(outcomes(modal,tau),:,:,:,:,:)),[2 3 4 5 6 1]);                           
                             for fj = 1:NumFactors
                                 % dot product with state vector from other hidden state factors 
                                 % (this is what allows hidden states to interact in the likleihood mapping)    
@@ -223,7 +269,7 @@ for t = 1:T % loop over time points
                             lnAo(:,tau) = lnAo(:,tau) + lnA;
                         end
                     end
-                                        % 'forwards' and 'backwards' messages at each tau
+                    % 'forwards' and 'backwards' messages at each tau
                     if tau == 1 % first tau
                         lnD = nat_log(d{factor}); % forward message
                         lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
@@ -234,30 +280,31 @@ for t = 1:T % loop over time points
                         lnD  = nat_log(b{factor}(:,:,V(tau-1,policy,factor))*state_posterior{factor}(:,tau-1,policy));% forward message
                         lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
                     end
+                    % here we both combine the messages and perform a gradient
+                    % descent on the posterior 
+                    v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
+                    % variational free energy at each time point
+                    Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
+                    % update posterior by running v through a softmax 
+                    state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));    
+                    % store state_posterior (normalised firing rate) from each epoch of
+                    % gradient descent for each tau
+                    normalized_firing_rates{factor}(Ni,:,tau,t,policy) = state_posterior{factor}(:,tau,policy);                   
+                    % store v (non-normalized log posterior or 'membrane potential') 
+                    % from each epoch of gradient descent for each tau
+                    prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
+                    clear v
                 end
-                % here we both combine the messages and perform a gradient
-                % descent on the posterior 
-                v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
-                % variational free energy at each time point
-                Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
-                % update posterior by running v through a softmax 
-                state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));   
-                % store state_posterior (normalised firing rate) from each epoch of
-                % gradient descent for each tau
-                normalized_firing_rates{factor}(Ni,:,tau,t,policy) = state_posterior{factor}(:,tau,policy);                   
-                % store v (non-normalized log posterior or 'membrane potential') 
-                % from each epoch of gradient descent for each tau
-                prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
-                clear v
             end
-        end
+        end        
       % variational free energy for each policy (F)
       Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
       Fintermediate = squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
       % store variational fre e energy at last iteration of message passing
       F(policy,t) = Fintermediate(end);
       clear Fintermediate
-    end
+    end 
+    
     % expected free energy (G) under each policy
     %----------------------------------------------------------------------
     
@@ -265,6 +312,7 @@ for t = 1:T % loop over time points
     Gintermediate = zeros(NumPolicies,1);  
     % policy horizon for 'counterfactual rollout' for deep policies (described below)
     horizon = T;
+
     % loop over policies
     for policy = 1:NumPolicies
         
@@ -274,6 +322,7 @@ for t = 1:T % loop over time points
                 Gintermediate(policy) = Gintermediate(policy) - d_complexity{factor}'*state_posterior{factor}(:,1,policy);
             end 
         end
+         
         % This calculates the expected free energy from time t to the
         % policy horizon which, for deep policies, is the end of the trial T.
         % We can think about this in terms of a 'counterfactual rollout'
@@ -286,23 +335,66 @@ for t = 1:T % loop over time points
             for factor = 1:NumFactors
                 Expected_states{factor} = state_posterior{factor}(:,timestep,policy);
             end 
+            
             % calculate epistemic value term (Bayesian Surprise) and add to
             % expected free energy
-         
-             Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
-             %testo(policy) = G_epistemic_value(a(:),Expected_states(:))
-              for modality = 1:NumModalities
+            Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
+            
+            for modality = 1:NumModalities
                 % prior preferences about outcomes
                 predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
-                %Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
-              end
-        end
-    end
-           G(:,t) = Gintermediate;
-  
-end
+                Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
 
-%%%%%%%%%%%%%%%% Functions!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                % Bayesian surprise about parameters 
+                if isfield(MDP,'a')
+                    Gintermediate(policy) = Gintermediate(policy) - cell_md_dot(a_complexity{modality},{predictive_observations_posterior Expected_states{:}});
+                end
+            end 
+        end 
+    end 
+    
+    % store expected free energy for each time point and clear intermediate
+    % variable
+    G(:,t) = Gintermediate;
+    clear Gintermediate
+    
+    % infer policy, update precision and calculate BMA over policies
+    %----------------------------------------------------------------------
+    
+
+    % loop over policy selection using variational updates to gamma to
+    % estimate the optimal contribution of expeceted free energy to policy
+    % selection. This has the effect of down-weighting the contribution of 
+    % variational free energy to the posterior over policies when the 
+    % difference between the prior and posterior over policies is large
+    
+    if t > 1
+        gamma(t) = gamma(t - 1);
+    end
+    for ni = 1:Ni 
+        % posterior and prior over policies
+        policy_priors(:,t) = exp(log(E) + gamma(t)*G(:,t))/sum(exp(log(E) + gamma(t)*G(:,t)));% prior over policies
+        policy_posteriors(:,t) = exp(log(E) + gamma(t)*G(:,t) + F(:,t))/sum(exp(log(E) + gamma(t)*G(:,t) + F(:,t))); % posterior over policies
+        
+        % expected free energy precision (beta)
+   %     G_error = (policy_posteriors(:,t) - policy_priors(:,t))'*G(:,t);
+   %     beta_update = posterior_beta - beta + G_error; % free energy gradient w.r.t gamma
+   %     posterior_beta = posterior_beta - beta_update/2; 
+   %     gamma(t) = 1/posterior_beta;
+        
+        % simulate dopamine responses
+   %     n = (t - 1)*Ni + ni;
+   %     gamma_update(n,1) = gamma(t); % simulated neural encoding of precision (posterior_beta^-1)
+                                      % at each iteration of variational updating
+  %      policy_posterior_updates(:,n) = policy_posteriors(:,t); % neural encoding of policy posteriors
+  %      policy_posterior(1:NumPolicies,t) = policy_posteriors(:,t); % record posterior over policies 
+    end 
+         
+end % end loop over time points
+
+
+%%%% Functions
+%==========================================================================
 
 % normalise vector columns
 function b = col_norm(B)
@@ -315,13 +407,14 @@ end
 b = bb;
 end 
 
-
-function A  = spm_wnorm(A)
-% This uses the bsxfun function to subtract the inverse of each column
-% entry from the inverse of the sum of the columns and then divide by 2.
-% 
-A   = A + exp(-16);
-A   = bsxfun(@minus,1./sum(A,1),1./A)/2;
+% norm the elements of B transpose as required by MMP
+function b = B_norm(B)
+bb = B; 
+z = sum(bb,1); %create normalizing constant from sum of columns
+bb = bb./z; % divide columns by constant
+bb(isnan(bb)) = 0; %replace NaN with zero
+b = bb;
+% insert zero value condition
 end 
 
 % natural log that replaces zero values with very small values for numerical reasons.
@@ -337,6 +430,29 @@ elseif f == 2
     B = A*s;
 end 
 end
+
+
+%--- SPM functions
+%==========================================================================
+
+% These functions have been replicated (with permission) from the spm
+% toolbox. To aid in understading, some variable names have been changed.
+
+function X = cell_md_dot(X,x)
+% initialize dimensions
+DIM = (1:numel(x)) + ndims(X) - numel(x);
+
+% compute dot product using recursive sums (and bsxfun)
+for d = 1:numel(x)
+    s         = ones(1,ndims(X));
+    s(DIM(d)) = numel(x{d});
+    X         = bsxfun(@times,X,reshape(full(x{d}),s));
+    X         = sum(X,DIM(d));
+end
+
+% eliminate singleton dimensions
+X = squeeze(X);
+end 
 
 % epistemic value term (Bayesian surprise) in expected free energy 
 function G = G_epistemic_value(A,s)
@@ -377,151 +493,20 @@ G  = G - qo'*nat_log(qo);
 end 
 
 
-% epistemic value term (Bayesian surprise) in expected free energy 
-function qo = G_epistemic_valueTEST(A,s)
-    
-% auxiliary function for Bayesian suprise or mutual information
-% FORMAT [G] = spm_MDP_G(A,s)
-%
-% A   - likelihood array (probability of outcomes given causes)
-% s   - probability density of causes
-
-% Copyright (C) 2005 Wellcome Trust Centre for Neuroimaging
-
-% Karl Friston
-% $Id: spm_MDP_G.m 7306 2018-05-07 13:42:02Z karl $
-
-% probability distribution over the hidden causes: i.e., Q(s)
-
-qx = spm_cross(s); % this is the outer product of the posterior over states
-                   % calculated with respect to itself
-%test = find(qx > exp(-16))'
-% accumulate expectation of entropy: i.e., E[lnP(o|s)]
-G     = 0;
-qo    = 0;
-for i = find(qx > exp(-16))'
-    % probability over outcomes for this combination of causes
-    po   = 1;
-    for g = 1:numel(A)
-        po = spm_cross(po,A{g}(:,i));
-    end
-    po = po(:);
-    qo = qo + qx(i)*po;
-   %G  = G  + qx(i)*po'*nat_log(po);
-end
-
-% subtract entropy of expectations: i.e., E[lnQ(o)]
-%G  = G - qo'*nat_log(qo);
-    
-end 
-
-
-
-
-function [Y] = spm_cross(X,x,varargin)
-% Multidimensional outer product
-% FORMAT [Y] = spm_cross(X,x)
-% FORMAT [Y] = spm_cross(X)
-%
-% X  - numeric array
-% x  - numeric array
-%
-% Y  - outer product
-%
-% See also: spm_dot
-% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
-
-% Karl Friston
-% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
-
-% handle single inputs
-if nargin < 2
-    if isnumeric(X)
-        Y = X;
-    else
-        Y = spm_cross(X{:});
-    end
-    return
-end
-
-% handle cell arrays
-
-if iscell(X), X = spm_cross(X{:}); end
-if iscell(x), x = spm_cross(x{:}); end
-
-% outer product of first pair of arguments (using bsxfun)
-A = reshape(full(X),[size(X) ones(1,ndims(x))]);
-B = reshape(full(x),[ones(1,ndims(X)) size(x)]);
-Y = squeeze(bsxfun(@times,A,B));
-
-% and handle remaining arguments
-for i = 1:numel(varargin)
-    Y = spm_cross(Y,varargin{i});
-end
-end 
 
 %--------------------------------------------------------------------------
-function [Y] = spm_crossTEST(X,x,varargin)    % TESTS for single input behavior
-% Multidimensional outer product
-% FORMAT [Y] = spm_cross(X,x)
-% FORMAT [Y] = spm_cross(X)
-%
-% X  - numeric array
-% x  - numeric array
-%
-% Y  - outer product
-%
-% See also: spm_dot
-% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
-
-% Karl Friston
-% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
-
-% handle single inputs
-if nargin < 2  % NUMBER OF INPUT ELEMENTS = nargin
-    %if isnumeric(X)  % NOT   as cell array input for X is SO FAR not numeric
-    %    Y = X;       % NOT     does not work if the y in else is of and
-                      %         this is on only with return
-   %else              % NOT
-        Y = spm_crossTEST(X{:});
-   %end               % NOT
-   return % MUST!!!   % this part might not benecessary after all? To this extend at least? logic still not fully clear to me
-%                     % what happens with Y here, if it is again just nargin 1?
-end
-
-% handle cell arrays
-
-%if iscell(X), X = spm_crossTEST(X{:}); end   % using just X= spm_cross(X) .... does not work, needed as we got if above!
-%if iscell(x), x = spm_crossTEST(x{:}); end   % x = first input of g_epistemic value!! = a(:)
-
-% outer product of first pair of arguments (using bsxfun)
-A = reshape(full(X),[size(X) ones(1,ndims(x))]);  % ALL IN
-B = reshape(full(x),[ones(1,ndims(X)) size(x)]);  % in
-Y = squeeze(bsxfun(@times,A,B));                   % in  
-
-% and handle remaining arguments
-for i = 1:numel(varargin)
-    Y = spm_crossTEST(Y,varargin{i});  % this only works as well, when nargin part is up and rest muted...
-end                               % + when setting vargin{i} to 1
-end                                % what happens is that this 1 will become x within fun(X,x) and is therefore
-                                   % entering the function again in the
-                                   % nargin part!!!!
-
-function X = cell_md_dot(X,x)
-% initialize dimensions
-DIM = (1:numel(x)) + ndims(X) - numel(x);
-
-% compute dot product using recursive sums (and bsxfun)
-for d = 1:numel(x)
-    s         = ones(1,ndims(X));
-    s(DIM(d)) = numel(x{d});
-    X         = bsxfun(@times,X,reshape(full(x{d}),s));
-    X         = sum(X,DIM(d));
-end
-
-% eliminate singleton dimensions
-X = squeeze(X);
+function A  = spm_wnorm(A)
+% This uses the bsxfun function to subtract the inverse of each column
+% entry from the inverse of the sum of the columns and then divide by 2.
+% 
+A   = A + exp(-16);
+A   = bsxfun(@minus,1./sum(A,1),1./A)/2;
 end 
+
+
+
+
+
 
 function MDP = explore_exploit_model(Gen_model)
 
@@ -534,7 +519,7 @@ function MDP = explore_exploit_model(Gen_model)
 % of the choice states or moves from one of the choice states back to the
 % Start state.
 
-T = 3; % R Script it is Time
+T = 3;
 
 % Priors about initial states: D and d
 % =========================================================================
@@ -888,9 +873,9 @@ E = [1 1 1 1 1]';
 % number, where higher values indicate less randomness. Here we set this to 
 % a fairly high value:
 
-    alpha = 32; % fairly low randomness in action selectionend
-    
-    %% Define POMDP Structure
+    alpha = 32; % fairly low randomness in action selection
+
+%% Define POMDP Structure
 %==========================================================================
 
 mdp.T = T;                    % Number of time steps
@@ -930,14 +915,5 @@ label.action{2} = {'start','hint','left','right'};
 mdp.label = label;
 
 MDP = mdp;
-end
 
-% norm the elements of B transpose as required by MMP
-function b = B_norm(B)
-bb = B; 
-z = sum(bb,1); %create normalizing constant from sum of columns
-bb = bb./z; % divide columns by constant
-bb(isnan(bb)) = 0; %replace NaN with zero
-b = bb;
-% insert zero value condition
-end 
+end
