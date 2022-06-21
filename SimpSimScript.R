@@ -192,36 +192,14 @@ cell_md_dot = function(X,x){
 # SPM Functions #
 #################
 
-spm_wnorm = function(x) { # Start of Function:
+spm_wnorm = function(X){ # Start
+  # Convert to array 
+  Xdim = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
   
-  # This is a replication of the bsxfun function to subtract the 
-  # inverse of each column entry from the inverse of the sum of the 
-  # columns and then divide by 2.
-  if(ncol(as.matrix(x[[1]])) == 1){
-    
-    X = x
-    
-    X1   = lapply(X,"+", exp(-16))
-    X2   = lapply(X1, colSums)
-    
-    X3 = lapply(X2, function(x)(1/x))
-    X4 = lapply(X1, function(x)(1/x))
-    
-    X5 = lapply(X4,"-",as.numeric(X3[[1]]))
-    x = lapply(X5, "/",2)
-    
-  } # End if
-  else{
-    x   = lapply(x,"+", exp(-16))
-    for(i in 1:length(x)){
-      A = 1/colSums(x[[i]]) # Matlab:  1./sum(A,1)
-      B = 1/x[[i]]
-      x2 =  (A-B)/2         # Alternative? lapply(X2,"-",X3)
-      x[[i]] = x2
-    } # End of loop
-    x = x # Necessary to assign the values obtained from the loop!
-  } # End else if
-} # End of Function
+  X = Xdim + exp(-16)
+  X = (as.numeric(1/colSums(X))-(1/X))/2  # bsxfun in Matlab script
+  return(X)
+} # End of function
 
 spm_cross = function(X,x){ # Start of function; depends on the functions nargin() and reshapePRACmod(a,n,m)
   if (nargin()<2){
@@ -915,7 +893,6 @@ for (factor in 1:length(d)){
   d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
 } 
 
-d_complexity 
 
 # complexity of a maxtrix concentration parameters
 # similar to d:
@@ -1227,7 +1204,7 @@ for (t in 1:Time){  # loop over time points
     
     # Bayesian surprise about 'd'
     for (factor in 1:NumFactors){
-      Gintermediate[[policy]] = Gintermediate[[policy]] - t(d_complexity[[factor]][[1]])%*%state_posterior[[factor]][[policy]][,1]
+      Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%state_posterior[[factor]][[policy]][,1]
     } # End for factor   
     
     # This calculates the expected free energy from time t to the
@@ -1249,17 +1226,16 @@ for (t in 1:Time){  # loop over time points
       for (modality in 1:NumModalities){
         # prior preference over outcomes
         predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
+        #Gintermediate[[policy]] = Gintermediate[[policy]]+as.vector(predictive_observations_posterior)*C[[modality]][[1]][,t]
+        #Gintermediate[[policy]] = Gintermediate1[[1]]
       }
       
     } # End for horizon
   } # End for policy
   # store expected free energy for each time point and clear intermediate
   # variable
-  EFE[[1]][,t] = Gintermediate
+  EFE[[1]][,t] = Gintermediate[1,]
 } # End for Time
-
-EFE
-VFE
-predictive_observations_posterior
-
-
+         
+         
+      
