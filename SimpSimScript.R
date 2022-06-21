@@ -11,6 +11,12 @@
 
 # CONVERSION by Steffen Schwerdtfeger
 
+## rng('suffle') in Matlab
+set.seed(Sys.time())
+
+## Clear environment
+rm(list=ls())
+
 # This code simulates a single trial of the explore-exploit task introduced 
 # in the active inference tutorial using a stripped down version of the 
 # modelinversion scheme implemented in the spm_MDP_VB_X.m script. 
@@ -114,7 +120,7 @@ GreaterZero = function(x){
   checkLogic = lapply(x,TrueGreatZero) 
   trueISone = function(x){ x = x*1}
   checkNum = lapply(checkLogic,trueISone)
-}
+} # End Function
 
 # dot product along dimension f 
 md_dot = function (A,s,f){ 
@@ -192,13 +198,28 @@ cell_md_dot = function(X,x){
 # SPM Functions #
 #################
 
-spm_wnorm = function(X){ # Start
-  # Convert to array 
-  Xdim = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
-  
-  X = Xdim + exp(-16)
-  X = (as.numeric(1/colSums(X))-(1/X))/2  # bsxfun in Matlab script
-  return(X)
+spm_wnorm = function(X,CONV){ # Start
+  if(CONV == FALSE){
+    # This is a replication of the bsxfun function to subtract the 
+    # inverse of each column entry from the inverse of the sum of the 
+    # columns and then divide by 2.
+    X   = lapply(X,"+", exp(-16))
+    for(i in 1:length(X)){
+      A = 1/colSums(X[[i]]) # Matlab:  1./sum(A,1)
+      B = 1/X[[i]]
+      X2 =  (A-B)/2         # Alternative? lapply(X2,"-",X3)
+      X[[i]] = X2
+    } # End of loop
+    X = X # Necessary to assign the values obtained from the loop!
+    return(X)
+  } # End if CONV == FALSE
+  else if (CONV == TRUE){
+    # Convert to array 
+    Xdim = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
+    X = Xdim + exp(-16)
+    X = (as.numeric(1/colSums(X))-(1/X))/2  # bsxfun in Matlab script
+    return(X)
+  }
 } # End of function
 
 spm_cross = function(X,x){ # Start of function; depends on the functions nargin() and reshapePRACmod(a,n,m)
@@ -890,21 +911,21 @@ for (factor in 1:length(d)){
   # compute "complexity" - lower concentration paramaters have
   # smaller values creating a lower expected free energy thereby
   # encouraging 'novel' behaviour 
-  d_complexity[[factor]] = spm_wnorm(d_prior[[factor]])
+  d_complexity[[factor]] = spm_wnorm(d_prior[[factor]], CONV = TRUE)
 } 
-
 
 # complexity of a maxtrix concentration parameters
 # similar to d:
-a_prior = MDP$a
+a_prior= MDP$a
 a_complexity = c(list())
 
 for (modality in 1:length(a)){
-  a_complexity[[modality]] = spm_wnorm(a_prior[[modality]]) # *GreaterZero(a_prior[[modality]]) 
-  for (i in length(a_complexity[[modality]])){
-    a_complexity[[modality]][[i]]=a_complexity[[modality]][[i]]*GreaterZero(a_prior[[modality]])[[i]]
+  a_complexity[[modality]] = spm_wnorm(a_prior[[modality]], CONV = FALSE) # *GreaterZero(a_prior[[modality]]) 
+  for (i in length(MDP$a)){
+    a_complexity[[modality]][[i]] = a_complexity[[modality]][[i]]*GreaterZero(a_prior[[modality]])[[i]]
   }
 } # Checked on all GreaterZero results and seems to be fine
+
 
 # Normalise matrices before model inversion/inference
 #--------------------------------------------------------------------------
@@ -991,6 +1012,9 @@ for(policy in 1:NumPolicies){
 # initialize the approximate posterior over policies as a flat 
 # distribution over policies at each time point
 policy_posteriors = matrix(1,NumPolicies,Time)/NumPolicies
+# + policy posterior (no plural)
+policy_posterior = policy_posteriors
+
 
 # initialize posterior over actions:
 chosen_action = matrix(0, nrow = length(B), ncol = Time-1)
@@ -1058,6 +1082,9 @@ VFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
 
 # List for VFE:
 EFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
+
+# Policy priors
+policy_priors = EFE
 
 # Set up list for Expected states:
 Expected_states = rep(list(0),NumFactors)
@@ -1166,23 +1193,23 @@ for (t in 1:Time){  # loop over time points
             lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
             lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[tau]][factor, policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           }
-          
+          # here we both combine the messages and perform a gradient
+          # descent on the posterior.
+          v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
+          # variational free energy at each time point
+          Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
+          # update state_posterior running v through a softmax:
+          state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
+          # store state_posterior (normalised firing rate) from each epoch of
+          # gradient descent for each tau
+          normalized_firing_rates[[factor]][[1]][Ni,,tau,t,policy] = state_posterior[[factor]][[policy]][,tau]
+          # store v (non-normalized log posterior or 'membrane potential') 
+          # from each epoch of gradient descent for each tau
+          prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
         } # End loop tau
-        # here we both combine the messages and perform a gradient
-        # descent on the posterior.
-        v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[[1]][,tau])) - v_depolarization)/TimeConst
-        # variational free energy at each time point
-        Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
-        # update state_posterior running v through a softmax:
-        state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
-        # store state_posterior (normalised firing rate) from each epoch of
-        # gradient descent for each tau
-        normalized_firing_rates[[factor]][[1]][Ni,,tau,t,policy] = state_posterior[[factor]][[policy]][,tau]
-        # store v (non-normalized log posterior or 'membrane potential') 
-        # from each epoch of gradient descent for each tau
-        prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
       } # End loop factor
     } # End loop Ni
+
     # variational free energy for each policy (F)
     Fintermediate = rowSums(Ft[[1]],dims=3)            # sum over hidden state factors (Fintermediate is an intermediate F value)
     Fintermediate1 = colSums(Fintermediate,dims=1)     # sum over tau and squeeze into 16x3 matrix (squeeze here in R not needed)
@@ -1205,7 +1232,7 @@ for (t in 1:Time){  # loop over time points
     # Bayesian surprise about 'd'
     for (factor in 1:NumFactors){
       Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%state_posterior[[factor]][[policy]][,1]
-    } # End for factor   
+    } # End for factor   # ALL EQUAL up to here with Matlab.
     
     # This calculates the expected free energy from time t to the
     # policy horizon which, for deep policies, is the end of the trial T.
@@ -1221,21 +1248,52 @@ for (t in 1:Time){  # loop over time points
       
       # calculate epistemic value term (Bayesian Surprise) and add to
       # expected free energy
-      Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
-      
+     # Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
       for (modality in 1:NumModalities){
         # prior preference over outcomes
         predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
-        #Gintermediate[[policy]] = Gintermediate[[policy]]+as.vector(predictive_observations_posterior)*C[[modality]][[1]][,t]
-        #Gintermediate[[policy]] = Gintermediate1[[1]]
+        #Gintermediate[[policy]] = Gintermediate[[policy]]+t(predictive_observations_posterior)*C[[modality]][[1]][,t]
+        GinterZERO =  predictive_observations_posterior%*%C[[modality]][[1]][,t]
+        Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
       }
       
     } # End for horizon
   } # End for policy
   # store expected free energy for each time point and clear intermediate
   # variable
-  EFE[[1]][,t] = Gintermediate[1,]
+  EFE[[1]][,t] = Gintermediate
+  
+  # infer policy, update precision and calculate BMA over policies
+  #----------------------------------------------------------------------
+    
+    
+  # loop over policy selection using variational updates to gamma to
+  # estimate the optimal contribution of expeceted free energy to policy
+  # selection. This has the effect of down-weighting the contribution of 
+  # variational free energy to the posterior over policies when the 
+  # difference between the prior and posterior over policies is large
+  if (t>1){
+    gamma[[t]] = gamma[[t-1]]
+  }
+  for(ni in 1:NumIterations){
+    # posterior and prior over policies:
+    policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
+    policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
+    
+    # Expected free energy precision (beta):
+   # G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # with %*% scalar (correct?); 
+  #  beta_update = posterior_beta - beta + as.vector(G_error)  # free energy gradient w.r.t gamma
+  #  posterior_beta = posterior_beta - beta_update/2
+  #  gamma[[t]] = 1/posterior_beta
+    
+    # simulate dopamine responses
+  #  n = (t - 1)*Ni + ni 
+    # dimension changes over time, therefore we initialize gamma_update
+ #   gamma_update = matrix(0,nrow=n,ncol=1)
+  #  gamma_update[[n,1]] = gamma[[t]] # simulated neural encoding of precision (posterior_beta^-1)
+                                     # at each iteration of variational updating
+  #  policy_posterior_updates = matrix(0,nrow=NumPolicies,ncol=n)
+ #   policy_posterior_updates[,n] = policy_posteriors[,t] # neural encoding of policy posteriors
+#    policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
+  }
 } # End for Time
-         
-         
-      
