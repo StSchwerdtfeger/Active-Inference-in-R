@@ -15,6 +15,7 @@ rng('shuffle')
 close all
 clear
 
+format long
 % This code simulates a single trial of the explore-exploit task introduced 
 % in the active inference tutorial using a stripped down version of the model
 % inversion scheme implemented in the spm_MDP_VB_X.m script. 
@@ -100,7 +101,6 @@ if isfield(MDP,'d')
     end 
 end 
 
-
 if isfield(MDP,'a')
     % complexity of a maxtrix concentration parameters
     for modality = 1:numel(MDP.a)
@@ -108,8 +108,8 @@ if isfield(MDP,'a')
         a_complexity{modality} = spm_wnorm(a_prior{modality}).*(a_prior{modality} > 0);
     end
 end  
-
-
+a_complexity{1}(2,1,1)
+%%
 % Normalise matrices before model inversion/inference
 %--------------------------------------------------------------------------
 
@@ -190,7 +190,7 @@ for factors = 1:NumFactors
     end
 end
 MDP.chosen_action = chosen_action;
-
+a_complexity{1}(2,2)
 % initialize expected free energy precision (beta)
 posterior_beta = 1;
 gamma(1) = 1/posterior_beta; % expected free energy precision
@@ -199,7 +199,7 @@ gamma(1) = 1/posterior_beta; % expected free energy precision
 TimeConst = 4; % time constant for gradient descent
 NumIterations  = 16; % number of message passing iterations
 
-% Lets go! Message passing and policy selection 
+%% Lets go! Message passing and policy selection 
 %--------------------------------------------------------------------------
 
 for t = 1:T % loop over time points  
@@ -241,7 +241,7 @@ for t = 1:T % loop over time points
         O{modality,t} = vec;
         clear vec
     end 
-    
+   
     % marginal message passing (minimize F and infer posterior over states)
     %----------------------------------------------------------------------
     
@@ -261,14 +261,14 @@ for t = 1:T % loop over time points
                                 % (this is what allows hidden states to interact in the likleihood mapping)    
                                 if fj ~= factor        
                                     lnAs = md_dot((lnA),state_posterior{fj}(:,tau),fj);
-                                    clear lnA
+                                    %clear lnA
                                     lnA = lnAs; 
-                                    clear lnAs
+                                   % clear lnAs
                                 end
                             end
                             lnAo(:,tau) = lnAo(:,tau) + lnA;
                         end
-                    end
+                    end 
                     % 'forwards' and 'backwards' messages at each tau
                     if tau == 1 % first tau
                         lnD = nat_log(d{factor}); % forward message
@@ -279,12 +279,12 @@ for t = 1:T % loop over time points
                     else % 1 > tau > T
                         lnD  = nat_log(b{factor}(:,:,V(tau-1,policy,factor))*state_posterior{factor}(:,tau-1,policy));% forward message
                         lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
-                    end
+                    end     
                     % here we both combine the messages and perform a gradient
                     % descent on the posterior 
                     v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
                     % variational free energy at each time point
-                    Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
+                    Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)))  ;
                     % update posterior by running v through a softmax 
                     state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));    
                     % store state_posterior (normalised firing rate) from each epoch of
@@ -293,26 +293,24 @@ for t = 1:T % loop over time points
                     % store v (non-normalized log posterior or 'membrane potential') 
                     % from each epoch of gradient descent for each tau
                     prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
-                    clear v
+                    %clear v
                 end
             end
-        end        
-      % variational free energy for each policy (F)
-      Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
-      Fintermediate = squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
-      % store variational fre e energy at last iteration of message passing
-      F(policy,t) = Fintermediate(end);
-      clear Fintermediate
+        end  
+        % variational free energy for each policy (F)
+        Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
+        Fintermediate = squeeze(sum(Fintermediate,1));%squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
+        % store variational fre e energy at last iteration of message passing
+        F(policy,t) = Fintermediate(end);
+      %  clear Fintermediate
     end 
-    
-    % expected free energy (G) under each policy
+% expected free energy (G) under each policy
     %----------------------------------------------------------------------
     
     % initialize intermediate expected free energy variable (Gintermediate) for each policy
     Gintermediate = zeros(NumPolicies,1);  
     % policy horizon for 'counterfactual rollout' for deep policies (described below)
     horizon = T;
-
     % loop over policies
     for policy = 1:NumPolicies
         
@@ -320,9 +318,9 @@ for t = 1:T % loop over time points
         if isfield(MDP,'d')
             for factor = 1:NumFactors
                 Gintermediate(policy) = Gintermediate(policy) - d_complexity{factor}'*state_posterior{factor}(:,1,policy);
+                %Gintermediate1(policy) = d_complexity{factor}'*state_posterior{factor}(:,1,policy);
             end 
         end
-         
         % This calculates the expected free energy from time t to the
         % policy horizon which, for deep policies, is the end of the trial T.
         % We can think about this in terms of a 'counterfactual rollout'
@@ -335,62 +333,26 @@ for t = 1:T % loop over time points
             for factor = 1:NumFactors
                 Expected_states{factor} = state_posterior{factor}(:,timestep,policy);
             end 
-            
             % calculate epistemic value term (Bayesian Surprise) and add to
             % expected free energy
-            Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
-            
-            for modality = 1:NumModalities
+         
+             Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
+            % Gintermediate1(policy) = G_epistemic_value(a(:),Expected_states(:))
+             %  testo(policy) = G_epistemic_value(a(:),Expected_states(:))
+              for modality = 1:NumModalities
                 % prior preferences about outcomes
                 predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
                 Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
-
-                % Bayesian surprise about parameters 
-                if isfield(MDP,'a')
-                    Gintermediate(policy) = Gintermediate(policy) - cell_md_dot(a_complexity{modality},{predictive_observations_posterior Expected_states{:}});
-                end
-            end 
-        end 
-    end 
-    
-    % store expected free energy for each time point and clear intermediate
-    % variable
-    G(:,t) = Gintermediate;
-    clear Gintermediate
-    
+                %Gintermediate1(policy) = 1+predictive_observations_posterior'*(C{modality}(:,t))
+              end
+        end
+    end
+          G(:,t) = Gintermediate;  % NOT SURE UPT TO HERE I get results with mean difference around xe-6 or xe-7
     % infer policy, update precision and calculate BMA over policies
     %----------------------------------------------------------------------
     
-
-    % loop over policy selection using variational updates to gamma to
-    % estimate the optimal contribution of expeceted free energy to policy
-    % selection. This has the effect of down-weighting the contribution of 
-    % variational free energy to the posterior over policies when the 
-    % difference between the prior and posterior over policies is large
     
-    if t > 1
-        gamma(t) = gamma(t - 1);
-    end
-    for ni = 1:Ni 
-        % posterior and prior over policies
-        policy_priors(:,t) = exp(log(E) + gamma(t)*G(:,t))/sum(exp(log(E) + gamma(t)*G(:,t)));% prior over policies
-        policy_posteriors(:,t) = exp(log(E) + gamma(t)*G(:,t) + F(:,t))/sum(exp(log(E) + gamma(t)*G(:,t) + F(:,t))); % posterior over policies
-        
-        % expected free energy precision (beta)
-   %     G_error = (policy_posteriors(:,t) - policy_priors(:,t))'*G(:,t);
-   %     beta_update = posterior_beta - beta + G_error; % free energy gradient w.r.t gamma
-   %     posterior_beta = posterior_beta - beta_update/2; 
-   %     gamma(t) = 1/posterior_beta;
-        
-        % simulate dopamine responses
-   %     n = (t - 1)*Ni + ni;
-   %     gamma_update(n,1) = gamma(t); % simulated neural encoding of precision (posterior_beta^-1)
-                                      % at each iteration of variational updating
-  %      policy_posterior_updates(:,n) = policy_posteriors(:,t); % neural encoding of policy posteriors
-  %      policy_posterior(1:NumPolicies,t) = policy_posteriors(:,t); % record posterior over policies 
-    end 
-         
-end % end loop over time points
+end
 
 
 %%%% Functions
@@ -492,7 +454,13 @@ G  = G - qo'*nat_log(qo);
     
 end 
 
-
+function A  = spm_wnormTEST(A)
+% This uses the bsxfun function to subtract the inverse of each column
+% entry from the inverse of the sum of the columns and then divide by 2.
+% 
+A   = A + exp(-16);
+%A   = bsxfun(@minus,1./sum(A,1),1./A)/2;
+end 
 
 %--------------------------------------------------------------------------
 function A  = spm_wnorm(A)
