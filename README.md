@@ -36,13 +36,6 @@ SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Scrip
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
 
-# Current struggle: 
- - [[SOLVED]]get plot running for Figure 3 and 1 of Example 2 in the script for message passing example. 
-      - the function spm_cat could be translated into R in the future - or some equivalent code written for it... 
-
-# Issues:
-- the message passing example and EFE conflicts with each other. Clear environment seems not to be enough, so restarting the 
-  session might be necessary for correct results
 
 
  
