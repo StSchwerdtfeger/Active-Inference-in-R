@@ -1104,7 +1104,7 @@ prob_state = c(list())
 # Set matrix for true_states:
 true_states = matrix(1, nrow = NumFactors, ncol = Time)
 
-# Set matrix fro outcomes:
+# Set matrix for outcomes:
 outcomes = matrix(1, nrow = NumModalities, ncol = Time)
 
 # Set up vector list, dimmed as matrix for O:
@@ -1252,7 +1252,6 @@ for (t in 1:Time){  # loop over time points
           # descent on the posterior.
           v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[,tau])) - v_depolarization)/TimeConst
           # variational free energy at each time point
-          #Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%as.matrix(as.matrix(.5*(lnD)) + as.matrix(.5*(lnBs)) + as.matrix(lnAo[[1]][,tau])-as.matrix(nat_log(state_posterior[[factor]][[policy]][,tau])))
           Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%(.5*(lnD) + .5*(lnBs) + (lnAo[,tau])-nat_log(state_posterior[[factor]][[policy]][,tau]))
           # update state_posterior running v through a softmax:
           state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
@@ -1356,9 +1355,11 @@ for (t in 1:Time){  # loop over time points
     #    policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
   }
 } # End for Time
+Ft # factor 2 slightly off and all the rest as well
+Fintermediate
+VFE 
+EFE
+Gintermediate
 
-         
-         
-         
-         
-         
+# use e.g. MDP$A to acces a list element via console:
+MDP$A
