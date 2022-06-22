@@ -88,7 +88,7 @@ nat_log = function (x) {
 # Isfield function, Matlab-Style
 isfield  <- function(structure, field){
   any(field %in% names(structure) )
-} #################################################################################################### Forgot I have this, will re-write some of the lines to fit Matlab script.
+} 
 
 # Replication of the gradient function Matlab-Style
 # for calcualting the 1D numerical gradient.  
@@ -128,7 +128,8 @@ B_norm = function(x){
     x[,i] = x[,i]/z[i]       # divide columns by constant
   }
   x[is.nan(x)] = 0           # replace NaN with zero (probably not necessary in R)
-  return(x)
+  y=x
+  return(y)
 }
 
 # GreaterZero is used to only keep those values in a list that are 
@@ -482,8 +483,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Does not need an extra name to be assigned: 
   A[[2]][[3]] = matrix(c(      0   ,     0    ,  # Null        
-                               (1-pWin),   pWin   ,  # Loss
-                               pWin  , (1-pWin)),  # Win
+                           (1-pWin),   pWin   ,  # Loss
+                             pWin  , (1-pWin)),  # Win
                        nrow = 3, byrow = TRUE) 
   
   # Choosing the right machine (behavior state 4) generates wins with
@@ -492,8 +493,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Assign to list:
   A[[2]][[4]] = matrix(c(    0   ,      0   ,   # Null
-                             pWin  ,  (1-pWin),   # Loss
-                             (1-pWin),    pWin) ,   # Win
+                           pWin  ,  (1-pWin),   # Loss
+                         (1-pWin),    pWin) ,   # Win
                        ncol = 2, nrow = 3, byrow = TRUE)
   
   # Finally, we specify an identity mapping between behavior states and
@@ -554,8 +555,8 @@ POMDP_model_structure = function(Gen_model){
   
   
   a[[1]][[2]] =  matrix(c(0,     0,    # No Hint
-                          .25,   .25,    # Machine-Left Hint
-                          .25,   .25),   # Machine-Right Hint
+                        .25,   .25,    # Machine-Left Hint
+                        .25,   .25),   # Machine-Right Hint
                         nrow = 3, byrow = TRUE)
   
   # Needed for cell_md_dot(), where the input for X = a[[1]]. In Matlab
@@ -564,7 +565,7 @@ POMDP_model_structure = function(Gen_model){
   # write the function, such that one enters three inputs (a[[1]], Expect_states, a),
   # such that the numel(a{1}) is equivalent to length(a). I will still 
   # assign the item outside the function to make aware of this circumstance.
-  Numel_a = length(a)
+  Numel_a = length(a) # Still needed?
   
   # Controlled transitions and transition beliefs : B{:,:,u} and b(:,:,u)
   #==========================================================================
@@ -589,7 +590,7 @@ POMDP_model_structure = function(Gen_model){
   # necessary for the loop later on:
   B[[1]] = c(rep(list(zeros(2,2)),4))
   BMatDim[[1]] = c(rep(list(zeros(2,2)),1))
-    
+  
   B[[1]][[1]] = matrix(c(1, 0,   # 'Left Better' Context
                          0, 1),  # 'Right Better' Context
                        nrow = 2, byrow = TRUE)
@@ -844,14 +845,14 @@ POMDP_model_structure = function(Gen_model){
   
   # Not necessary in R, but to get the same overview as in the Matlab script:
   
-   Time                 # Number of time steps
-   V                    # allowable (deep) policies
+  Time                 # Number of time steps
+  V                    # allowable (deep) policies
   
-   A                    # state-outcome mapping
-   B                    # transition probabilities
-   C                    # preferred states
-   D                    # priors over initial states
-   d                    # enable learning priors over initial states
+  A                    # state-outcome mapping
+  B                    # transition probabilities
+  C                    # preferred states
+  D                    # priors over initial states
+  d                    # enable learning priors over initial states
   
   # Also just for an overview compared to the matlab script.
   # To recreate the below in R, we have to either add E for Gen_model = 1
@@ -861,8 +862,8 @@ POMDP_model_structure = function(Gen_model){
     E }              # prior over policies
   
   if (Gen_model == 2){
-     a                # enable learning state-outcome mappings
-     e                # enable learning of prior over policies
+    a                # enable learning state-outcome mappings
+    e                # enable learning of prior over policies
   }
   
   eta = eta                 # learning rate
@@ -878,7 +879,7 @@ POMDP_model_structure = function(Gen_model){
   # Set up list:
   if(Gen_model == 1){
     MDP = list(A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors, chosen_action=1, BMatDim)     
-  
+    
     # (Re)name items of list (name for chosen_action is included as well already, so it can simply be added)
     names(MDP) = c("A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action", "BMatDim")
   }
@@ -909,7 +910,7 @@ MDP$BMatDim
 
 # Normalize generative process and generative model
 #--------------------------------------------------------------------------
-  
+
 # before sampling from the generative process and inverting the generative 
 # model we need to normalize the columns of the matrices so that they can 
 # be treated as a probability distributions
@@ -986,7 +987,7 @@ if(isfield(MDP, "a")){
   a = col_norm(MDP$a)      
 }
 if(isfield(MDP, "a")==FALSE){
-a = col_norm(MDP$A)
+  a = col_norm(MDP$A)
 }                                
 
 ## normalize b matrix
@@ -1221,11 +1222,11 @@ for (t in 1:Time){  # loop over time points
                 if (fj != factor){        
                   lnAs = md_dot((lnA),state_posterior[[fj]][[1]][,tau],fj)
                   rm(lnA)
-                  lnA = lnAs # Matlab uses "clear" here as well - needed? 
-                  rm(lnAs)
+                  lnA = lnAs  
+                  rm(lnAs) # needed?
                 } # End if fj != factor
               } # End loop fj
-              lnAo[,tau] = lnAo[,tau] + lnA#mapply("+",lnAo[[policy]][,tau], lnA) # very different to Matlab, but results in the same
+              lnAo[,tau] = lnAo[,tau] + lnA
               # Matlab: size(lnAo(:,:)) % dim is 4 15 and it is just all collumns next to each other!
               # size of lnAo itself though is 4 3 5; considering tau=3, the change only concerns the cols of lnAo[[1]]
             } # End loop modal 
@@ -1234,25 +1235,26 @@ for (t in 1:Time){  # loop over time points
           if (tau == 1){ # first tau
             # forward message
             lnD = nat_log(d[[factor]][[1]]) 
-            # backward message
-            lnBs = nat_log(B_norm(t(b[[factor]][[V[[1]][[tau]][factor,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            # backward message  
+            lnBs = nat_log(B_norm(t(b[[factor]][[V[[1]][[factor]][tau,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           } # End if tau == 1
           else if (tau == Time){ # last tau  
             # foward message
-            lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
+            lnD  = nat_log(b[[factor]][[V[[1]][[factor]][tau-1,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
             # Backward message:
             lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
           }
-          else {#if (tau > Time & 1 > tau){ # 1 < tau < Time
+          else if (tau < 1 | tau < Time){ # 1 > tau > Time
             # foward message
-            lnD  = nat_log(b[[factor]][[V[[1]][[tau-1]][factor,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
-            lnBs = nat_log(B_norm(t(b[[factor]][[V[[1]][[tau]][factor, policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            lnD  = nat_log(b[[factor]][[V[[1]][[factor]][tau-1,policy]]]%*%(state_posterior[[factor]][[policy]][,tau-1]))  
+            lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[factor]][tau, policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
           }
+          
           # here we both combine the messages and perform a gradient
           # descent on the posterior.
           v_depolarization = v_depolarization + ((.5*(lnD) + .5*(lnBs) + as.matrix(lnAo[,tau])) - v_depolarization)/TimeConst
           # variational free energy at each time point
-          Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%(.5*(lnD) + .5*(lnBs) + (lnAo[,tau])-nat_log(state_posterior[[factor]][[policy]][,tau]))
+          Ft[[1]][tau,Ni,t,factor] = t(state_posterior[[factor]][[policy]][,tau])%*%(.5*lnD + .5*lnBs + lnAo[,tau]-nat_log(state_posterior[[factor]][[policy]][,tau]))   
           # update state_posterior running v through a softmax:
           state_posterior[[factor]][[policy]][,tau] = softmax(v_depolarization) 
           # store state_posterior (normalised firing rate) from each epoch of
@@ -1262,21 +1264,23 @@ for (t in 1:Time){  # loop over time points
           # from each epoch of gradient descent for each tau
           prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
           #CLEAR V necessary?
+          #clear(lst)
         } # End loop tau
       } # End loop factor
     } # End loop Ni
     
     # variational free energy for each policy (F)
-    Fintermediate = rowSums(Ft[[1]],dims=3)            # sum over hidden state factors (Fintermediate is an intermediate F value)
+    Ftarr <- array(as.numeric(unlist(Ft)), dim = c(3, 16, 3, 2)) # optional
+    Fintermediate = rowSums(Ftarr,dims=3)    # sum over hidden state factors (Fintermediate is an intermediate F value)
     Fintermediate = colSums(Fintermediate)     # sum over tau and squeeze into 16x3 matrix (squeeze here in R not needed)
     # store variational free energy at last iteration of message passing
-    VFE[[1]][policy,t] = last(Fintermediate[,t])#Fintermediate[NumIterations,t]#last(Fintermediate[policy,])
+    VFE[[1]][policy,t] = Fintermediate[NumIterations,t]#last(Fintermediate[,t])#Fintermediate[NumIterations,t]#last(Fintermediate[policy,])
     rm(Fintermediate)
   } # End loop policies
   
   # expected free energy (G) under each policy
   #----------------------------------------------------------------------
-  
+
   # initialize intermediate expected free energy variable (Gintermediate) for each policy
   Gintermediate = matrix(0,NumPolicies,1)
   
@@ -1331,35 +1335,35 @@ for (t in 1:Time){  # loop over time points
   # variational free energy to the posterior over policies when the 
   # difference between the prior and posterior over policies is large
   if (t>1){
-    #  gamma[[t]] = gamma[[t-1]]
+    #    gamma[[t]] = gamma[[t-1]]
   }
   for(ni in 1:NumIterations){
     # posterior and prior over policies:
-    #  policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
-    #  policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
+    #    policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
+    #   policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
     
     # Expected free energy precision (beta):
-    # G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # with %*% scalar (correct?); 
-    #  beta_update = posterior_beta - beta + as.vector(G_error)  # free energy gradient w.r.t gamma
-    #  posterior_beta = posterior_beta - beta_update/2
-    #  gamma[[t]] = 1/posterior_beta
+    #    G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # with %*% scalar (correct?); 
+    #    beta_update = posterior_beta - beta + as.vector(G_error)  # free energy gradient w.r.t gamma
+    #    posterior_beta = posterior_beta - beta_update/2
+    #    gamma[[t]] = 1/posterior_beta
     
     # simulate dopamine responses
-    #  n = (t - 1)*Ni + ni 
+    #  n = (t - 1)*NumIterations + ni 
     # dimension changes over time, therefore we initialize gamma_update
     #   gamma_update = matrix(0,nrow=n,ncol=1)
     #  gamma_update[[n,1]] = gamma[[t]] # simulated neural encoding of precision (posterior_beta^-1)
     # at each iteration of variational updating
     #  policy_posterior_updates = matrix(0,nrow=NumPolicies,ncol=n)
-    #   policy_posterior_updates[,n] = policy_posteriors[,t] # neural encoding of policy posteriors
-    #    policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
+    #  policy_posterior_updates[,n] = policy_posteriors[,t] # neural encoding of policy posteriors
+    #  policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
   }
 } # End for Time
-Ft # factor 2 slightly off and all the rest as well
-Fintermediate
-VFE 
+Ft # tau factor 2 slightly off and all the rest as well
+VFE # one failure was V was adressed in the wrong way; still not equivalent to the Matlab script; my old attempt gives different results, but is very close.
 EFE
 Gintermediate
 
 # use e.g. MDP$A to acces a list element via console:
 MDP$A
+B
