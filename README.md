@@ -29,8 +29,9 @@ Outdated:
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
-- I will probably switch to using arrays for the most of the script, but leave it for now (change has a lot of impact on the script, so Ill do it later)
-- going well so far, but plotting routines will probably be more difficult to reproduce, will see. Some of the functions can be improved as well. 
+- Now most of the script follows the Matlab structure (included isfield parts etc.). After I figured I took a wrong turn in the loop,
+  I solved most of the issues, but Ft factor 2 tau 2 is somehow off (along with others), so VFE and EFE along with it. Not sure if this
+  is just how it is, with random numbers... got to check.
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
