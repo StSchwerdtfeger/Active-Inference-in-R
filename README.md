@@ -29,9 +29,8 @@ Outdated:
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
-- Now most of the script follows the Matlab structure (included isfield parts etc.). After I figured I took a wrong turn in the loop,
-  I solved most of the issues, but Ft factor 2 tau 2 is somehow off (along with others), so VFE and EFE along with it. Not sure if this
-  is just how it is, with random numbers... got to check.
+- Script now runs VFE correctly. Issue was that list objects are not always treated as double()... as.matrix() 
+  within the message passing part helped. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
