@@ -121,16 +121,37 @@ col_norm = function(x){
   lapply(x,lapply, function(x)(t(t(x)/colSums(x))))
 }
 
-# B_norm 
+# This is a version without lapply for B_norm:
+col_normSIMP = function(x){t(t(x)/colSums(x))} # Without lapply for B
+
+# B_norm (This function is really messy, but it works; other attemps failed
+# it is not even possible to combine the two functions; its probably some 
+# redundant transposing.
 B_norm = function(x){
-  z = colSums(x)             # create normalizing constant from sum of columns
-  for(i in 1:length(x[1,])){ 
-    x[,i] = x[,i]/z[i]       # divide columns by constant
+  if (ncol(x) == 1){
+    bb = x
+    z  = sum(bb)        # create normalizing constant from sum of columns
+    bb = bb/z           # divide columns by constant
+    bb[is.nan(bb)] = 0  # replace NaN with zero
+    b = bb
+    return(b)
   }
-  x[is.nan(x)] = 0           # replace NaN with zero (probably not necessary in R)
-  y=x
-  return(y)
+  else {
+    x = B_norm2(x)
+    z=t(x)
+    return(z)
+  }
 }
+
+B_norm2 = function(y){
+  x=col_normSIMP(t(y))
+  x[is.nan(x)] = 0
+  x
+}
+
+################## STILL NO CHANGE, also with all teh transpose things...
+# Could be the matrix structure of B!!!! also include all the other colnorm etx isfield stuff!!!
+
 
 # GreaterZero is used to only keep those values in a list that are 
 # greater than zero refers to line 104 in the Matlab script:
@@ -483,8 +504,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Does not need an extra name to be assigned: 
   A[[2]][[3]] = matrix(c(      0   ,     0    ,  # Null        
-                           (1-pWin),   pWin   ,  # Loss
-                             pWin  , (1-pWin)),  # Win
+                               (1-pWin),   pWin   ,  # Loss
+                               pWin  , (1-pWin)),  # Win
                        nrow = 3, byrow = TRUE) 
   
   # Choosing the right machine (behavior state 4) generates wins with
@@ -493,8 +514,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Assign to list:
   A[[2]][[4]] = matrix(c(    0   ,      0   ,   # Null
-                           pWin  ,  (1-pWin),   # Loss
-                         (1-pWin),    pWin) ,   # Win
+                             pWin  ,  (1-pWin),   # Loss
+                             (1-pWin),    pWin) ,   # Win
                        ncol = 2, nrow = 3, byrow = TRUE)
   
   # Finally, we specify an identity mapping between behavior states and
@@ -555,8 +576,8 @@ POMDP_model_structure = function(Gen_model){
   
   
   a[[1]][[2]] =  matrix(c(0,     0,    # No Hint
-                        .25,   .25,    # Machine-Left Hint
-                        .25,   .25),   # Machine-Right Hint
+                          .25,   .25,    # Machine-Left Hint
+                          .25,   .25),   # Machine-Right Hint
                         nrow = 3, byrow = TRUE)
   
   # Needed for cell_md_dot(), where the input for X = a[[1]]. In Matlab
@@ -579,81 +600,56 @@ POMDP_model_structure = function(Gen_model){
   
   # Columns are states at time t. Rows are states at t+1.
   
-  # Setup vector list:
-  B = c(list())
-  BMatDim = B
+  # Setup list:
+  B = vector("list", 2*4)
+  dim(B) = matrix(c(2,4))
   
   # The agent cannot control the context state, so there is only 1 'action',
   # indicating that contexts remain stable within a trial:
   
-  # Predim list, otherwise assigning via e.e B[[1]][[1]] is not possible, but
-  # necessary for the loop later on:
-  B[[1]] = c(rep(list(zeros(2,2)),4))
-  BMatDim[[1]] = c(rep(list(zeros(2,2)),1))
+  # Note: this is an identity matrix. 
   
-  B[[1]][[1]] = matrix(c(1, 0,   # 'Left Better' Context
-                         0, 1),  # 'Right Better' Context
-                       nrow = 2, byrow = TRUE)
+  B[[1,1]] = matrix(c(1, 0,   # 'Left Better' Context
+                      0, 1),  # 'Right Better' Context
+                    nrow = 2, ncol = 2, byrow = TRUE)
   
-  # For the loop, we have consider B[[1]][] having the same dim as B[[2]][].
-  # The reason is that B[[1]] refers to the context state, which is an identity
-  # matrix. In R we have to represent the identity, such that the the length
-  # of B[[1]] == B[[2]]. Otherwise the loop spits out funny values. Compare
-  # page 26 in the ATUT on B[[1]] being identity matrix by intention. 
   
-  # Store old dim for Num_controllable_transitions
-  BMatDim[[1]][[1]] = B[[1]][[1]]
-  
-  # New dim for the loop:
-  for (i in 1:4){
-    B[[1]][[i]] = B[[1]][[1]]
-  }
   
   # The agent can control the behavior state, and we include 4 possible 
   # actions:
   
-  # Pre dim again:
-  B[[2]] = c(rep(list(zeros(4,4)),4))
-  BMatDim[[2]] = c(rep(list(zeros(4,4)),4))
-  
-  # Adds a c(1,1,1,1) vector to respective line, similar as before
-  for (i in 1:Ns[2]){
-    B[[2]][[i]][i,] = ones(1,4)
-  }
-  
-  # THE BELOW IS JUST FOR AN OVERVIEW, but otherwise not necessary so far
-  # in this script.
-  
   # Move to the Start state from any other state
-  B[[2]][[1]] = matrix(c(1, 1, 1, 1,  # Start State
-                         0, 0, 0, 0,  # Hint
-                         0, 0, 0, 0,  # Choose Left Machine
-                         0, 0, 0, 0), # Choose Right Machine
-                       nrow = 4, byrow = TRUE)
+  B[[2,1]] = matrix(c(1, 1, 1, 1,  # Start State
+                      0, 0, 0, 0,  # Hint
+                      0, 0, 0, 0,  # Choose Left Machine
+                      0, 0, 0, 0), # Choose Right Machine
+                      nrow = 4, byrow = TRUE)
   
   # Move to the Hint state from any other state
-  B[[2]][[2]] = matrix(c(0, 0, 0, 0,  # Start State
-                         1, 1, 1, 1,  # Hint
-                         0, 0, 0, 0,  # Choose Left Machine
-                         0, 0, 0, 0), # Choose Right Machine
+  B[[2,2]] = matrix(c(0, 0, 0, 0,  # Start State
+                      1, 1, 1, 1,  # Hint
+                      0, 0, 0, 0,  # Choose Left Machine
+                      0, 0, 0, 0), # Choose Right Machine
                        nrow = 4, byrow = TRUE)
   
   # Move to the Choose Left state from any other state
-  B[[2]][[3]] = matrix(c(0, 0, 0, 0,  # Start State
-                         0, 0, 0, 0,  # Hint
-                         1, 1, 1, 1,  # Choose Left Machine
-                         0, 0, 0, 0), # Choose Right Machine
+  B[[2,3]] = matrix(c(0, 0, 0, 0,  # Start State
+                      0, 0, 0, 0,  # Hint
+                      1, 1, 1, 1,  # Choose Left Machine
+                      0, 0, 0, 0), # Choose Right Machine
                        nrow = 4, byrow = TRUE)
   
   # Move to the Choose Right state from any other state
-  B[[2]][[4]] = matrix(c(0, 0, 0, 0,  # Start State
-                         0, 0, 0, 0,  # Hint
-                         0, 0, 0, 0,  # Choose Left Machine
-                         1, 1, 1, 1), # Choose Right Machine        
+  B[[2,4]] = matrix(c(0, 0, 0, 0,  # Start State
+                      0, 0, 0, 0,  # Hint
+                      0, 0, 0, 0,  # Choose Left Machine
+                      1, 1, 1, 1), # Choose Right Machine        
                        nrow = 4, byrow = TRUE)
   
-  # Store old dim again:
-  BMatDim[[2]] = B[[2]]
+  # For Number of controllable transitions we will create a dummy
+  # array that is without NULL values, but equivalent dimension:
+  
+  Bdim <- c(rep(list(array(0, c(2, 2, 1))), 1), list(array(0, c(4, 4, 4))))
   
   #--------------------------------------------------------------------------
   # Specify prior beliefs about state transitions in the generative model
@@ -758,23 +754,24 @@ POMDP_model_structure = function(Gen_model){
   NumPolicies = 5 # Number of policies
   NumFactors = 2 # Number of state factors
   
-  V = c(list())
+  V = vector("list", 1*2)
+  dim(V) = matrix(c(1,2))
   
   # Pre dim
-  V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
+  #V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
   
   # Deep policies v[[]]
   
-  V[[1]][[1]]         = matrix(c(1, 1, 1, 1, 1,
-                                 1, 1, 1, 1, 1), # Context state is not controllable
+  V[[1]]        = matrix(c(1, 1, 1, 1, 1,
+                           1, 1, 1, 1, 1), # Context state is not controllable
                                nrow = 2, byrow = TRUE)
   
   
-  V[[1]][[2]]         = matrix(c(1, 2, 2, 3, 4,
-                                 1, 3, 4, 1, 1), 
+  V[[2]]        = matrix(c(1, 2, 2, 3, 4,
+                           1, 3, 4, 1, 1), 
                                nrow = 2, byrow = TRUE)
   
-  # For V[[1]][[2]], columns left to right indicate policies allowing: 
+  # For V[[2]], columns left to right indicate policies allowing: 
   # 1. staying in the start state 
   # 2. taking the hint then choosing the left machine
   # 3. taking the hint then choosing the right machine
@@ -873,21 +870,21 @@ POMDP_model_structure = function(Gen_model){
   
   
   # respecify for use in inversion script (specific to this tutorial example)
-  NumPolicies = NumPolicies  # Number of policies
-  NumFactors = NumFactors    # Number of state factors
+  NumPolicies   # Number of policies
+  NumFactors    # Number of state factors
   
   # Set up list:
   if(Gen_model == 1){
-    MDP = list(A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors, chosen_action=1, BMatDim)     
+    MDP = list(A,B,C,D,d,E,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors, chosen_action=1, "Bdim")     
     
     # (Re)name items of list (name for chosen_action is included as well already, so it can simply be added)
-    names(MDP) = c("A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action", "BMatDim")
+    names(MDP) = c("A","B","C","D","d","E","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action", "Bdim")
   }
   if(Gen_model == 2){
-    MDP = list(a,A,B,C,D,d,e,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors, chosen_action=1, BMatDim)     
+    MDP = list(a,A,B,C,D,d,e,V,Time,eta,alpha,beta,omega,NumPolicies,NumFactors, chosen_action=1, Bdim)     
     
     # (Re)name items of list (name for chosen_action is included as well already, so it can simply be added)
-    names(MDP) = c("a","A","B","C","D","d","e","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action", "BMatDim")
+    names(MDP) = c("a","A","B","C","D","d","e","V","Time","eta","alpha","beta","omega","NumPolicies","NumFactors", "chosen_action", "Bdim")
   }
   MDP
 } # End of function POMDP_model_structure
@@ -898,7 +895,7 @@ POMDP_model_structure = function(Gen_model){
 ############################
 
 MDP = POMDP_model_structure(Gen_model)
-MDP$BMatDim
+MDP$a
 # Model specification is reproduced at the bottom of this script 
 # (starting on line 810), but see main tutorial script for more 
 # complete walk-through
@@ -932,7 +929,8 @@ omega = MDP$omega     # Forgetting rate
 A = col_norm(A)
 
 # Col_norm of B
-B = col_norm(B)
+# Normalize B matrix (in matlab above together with A and D)
+B[] = lapply(MDP$B, \(x) if (!is.null(x)) col_normSIMP(x) else NULL)
 
 # Col_norm of D
 D = col_norm(D)
@@ -989,15 +987,19 @@ if(isfield(MDP, "a")){
 if(isfield(MDP, "a")==FALSE){
   a = col_norm(MDP$A)
 }                                
+B
 
 ## normalize b matrix
 
-if(isfield(MDP, "b")){
-  b = col_norm(MDP$b)      
-}
-if(isfield(MDP, "b")==FALSE){
-  b = col_norm(MDP$B)
-}                                
+if(isfield(MDP,"b")){     
+  b = lapply(MDP$b, \(x) if (!is.null(x)) col_normSIMP(x) else NULL)
+}else{
+  b = lapply(MDP$B, \(x) if (!is.null(x)) col_normSIMP(x) else NULL)
+}                                   
+dim(b) = matrix(c(nrow(MDP$B), ncol(MDP$B))) # Dim B
+
+# Better handling with NA. 
+b[b == "NULL"] = NA
 
 # normalize C and transform into log probability
 for(modality in 1:length(C)){
@@ -1037,15 +1039,15 @@ for(i in 1){
 # numbers of transitions, policies and states
 NumModalities = length(a)         # number of outcome factors
 NumFactors = length(d)            # number of hidden state factors
-NumPolicies = ncol(V[[1]][[1]])   # number of allowable policies
+NumPolicies = ncol(V[[1]])   # number of allowable policies
 
 # Setup matrix
 NumStates = matrix(0,nrow=NumFactors)
 NumControllable_transitions = matrix(0,nrow=NumFactors)
 
 for(factor in 1:NumFactors){
-  NumStates[[factor]] = nrow(b[[factor]][[1]])
-  NumControllable_transitions[[factor]] = length(MDP$BMatDim[[factor]])
+  NumStates[[factor]] = nrow(MDP$Bdim[[factor]][,,1])
+  NumControllable_transitions[[factor]] = length(MDP$Bdim[[factor]][,,1])
 }
 
 # Setup vector list for state_posterior:
@@ -1099,8 +1101,9 @@ NumIterations  = 16  # number of message passing iterations
 
 ### Pre-set of lists and matrices for the loop
 
-# Set simple list for prob_state:    
-prob_state = c(list())
+# Matrix list for prob_state
+prob_state = vector("list", nrow(D[[2]][[1]])*ncol(D[[2]][[1]]))
+dim(prob_state) = matrix(c(nrow(D[[2]][[1]]),ncol(D[[2]][[1]])))
 
 # Set matrix for true_states:
 true_states = matrix(1, nrow = NumFactors, ncol = Time)
@@ -1151,8 +1154,7 @@ for(factor in 1:NumFactors){
 normalized_firing_rates = prediction_error
 
 ##### FOR INCOMPLETE LOOP
-MDP$chosen_action=matrix(1,2,2)
-
+chosen_action=matrix(1,2,2)
 
 ### Lets go! Message passing and policy selection 
 #--------------------------------------------------------------------------
@@ -1170,15 +1172,14 @@ for (t in 1:Time){  # loop over time points
     # the first number in the cumulative sum vector that is >= the random number. 
     # For example if our D vector is [.5 .5] 50% of the time the element of the 
     # vector corresponding to the state one will be >= to the random number. 
-    
     # sample states 
     if (t == 1){
-      prob_state = D[[factor]] # sample initial state T = 1 # WORKS! 1 0 0 0 Transp.
+      prob_state = D[[factor]][[1]] # sample initial state T = 1 
     } #
-    else if (t > 1){
-      prob_state <- B[[factor]][[true_states[[factor, t-1]]]][,MDP$chosen_action[[factor, (t-1)]]]
+    else if (t > 1){ # identy for every turn necessary? 
+      prob_state <- B[[factor,true_states[[factor, t-1]]]][,chosen_action[[factor, t-1]]]
     } #
-    true_states[[factor,t]] = which(cumsum(prob_state[[1]])>=runif(1))[1]
+    true_states[[factor,t]] = which(cumsum(prob_state)>=runif(1))[1]
   } # End loop factor
   
   # sample observations
@@ -1236,18 +1237,18 @@ for (t in 1:Time){  # loop over time points
             # forward message
             lnD = nat_log(d[[factor]][[1]]) 
             # backward message  
-            lnBs = nat_log(B_norm(t(b[[factor]][[V[[1]][[factor]][tau,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           } # End if tau == 1
           else if (tau == Time){ # last tau  
             # foward message
-            lnD  = nat_log(b[[factor]][[V[[1]][[factor]][tau-1,policy]]]%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
+            lnD  = nat_log(as.matrix(b[[factor,V[[factor]][tau-1,policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
             # Backward message:
             lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
           }
-          else if (tau < 1 | tau < Time){ # 1 > tau > Time
+          else{#} if (1 < tau & tau < Time){ # just else { } is enough too
             # foward message
-            lnD  = nat_log(b[[factor]][[V[[1]][[factor]][tau-1,policy]]]%*%(state_posterior[[factor]][[policy]][,tau-1]))  
-            lnBs = nat_log(t(B_norm(b[[factor]][[V[[1]][[factor]][tau, policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
+            lnD  = nat_log(b[[factor,V[[factor]][tau-1,policy]]]%*%(as.matrix(state_posterior[[factor]][[policy]][,tau-1])))  
+            lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
           }
           
           # here we both combine the messages and perform a gradient
@@ -1274,13 +1275,13 @@ for (t in 1:Time){  # loop over time points
     Fintermediate = rowSums(Ftarr,dims=3)    # sum over hidden state factors (Fintermediate is an intermediate F value)
     Fintermediate = colSums(Fintermediate)     # sum over tau and squeeze into 16x3 matrix (squeeze here in R not needed)
     # store variational free energy at last iteration of message passing
-    VFE[[1]][policy,t] = Fintermediate[NumIterations,t]#last(Fintermediate[,t])#Fintermediate[NumIterations,t]#last(Fintermediate[policy,])
-    rm(Fintermediate)
+    VFE[[1]][policy,t] = last(Fintermediate[,t]) # Fintermediate[NumIterations,t]
+    #rm(Fintermediate)
   } # End loop policies
   
   # expected free energy (G) under each policy
   #----------------------------------------------------------------------
-
+  
   # initialize intermediate expected free energy variable (Gintermediate) for each policy
   Gintermediate = matrix(0,NumPolicies,1)
   
@@ -1305,7 +1306,7 @@ for (t in 1:Time){  # loop over time points
     for (timestep in t:horizon){
       # grab expected states for each policy and time
       for (factor in 1:NumFactors){
-        Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
+   #     Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
       } # End for factor
       
       # calculate epistemic value term (Bayesian Surprise) and add to
@@ -1313,10 +1314,10 @@ for (t in 1:Time){  # loop over time points
       # Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
       for (modality in 1:NumModalities){
         # prior preference over outcomes
-        predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
+   #     predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
         #Gintermediate[[policy]] = Gintermediate[[policy]]+t(predictive_observations_posterior)*C[[modality]][[1]][,t]
-        GinterZERO =  predictive_observations_posterior%*%C[[modality]][[1]][,t]
-        Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
+    #    GinterZERO =  predictive_observations_posterior%*%C[[modality]][[1]][,t]
+    #   Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
       }
       
     } # End for horizon
@@ -1359,11 +1360,3 @@ for (t in 1:Time){  # loop over time points
     #  policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
   }
 } # End for Time
-Ft # tau factor 2 slightly off and all the rest as well
-VFE # one failure was V was adressed in the wrong way; still not equivalent to the Matlab script; my old attempt gives different results, but is very close.
-EFE
-Gintermediate
-
-# use e.g. MDP$A to acces a list element via console:
-MDP$A
-B
