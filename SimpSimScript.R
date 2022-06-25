@@ -1235,9 +1235,9 @@ for (t in 1:Time){  # loop over time points
           # 'forwards' and 'backwards' messages at each tau
           if (tau == 1){ # first tau
             # forward message
-            lnD = nat_log(d[[factor]][[1]]) 
+            lnD = nat_log(as.matrix(d[[factor]][[1]])) 
             # backward message  
-            lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
+            lnBs = nat_log(t(B_norm(as.matrix(b[[factor,V[[factor]][tau,policy]]])))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           } # End if tau == 1
           else if (tau == Time){ # last tau  
             # foward message
@@ -1245,7 +1245,7 @@ for (t in 1:Time){  # loop over time points
             # Backward message:
             lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
           }
-          else{#} if (1 < tau & tau < Time){ # just else { } is enough too
+          else if (1 < tau & tau < Time){ # just else { } is enough too
             # foward message
             lnD  = nat_log(b[[factor,V[[factor]][tau-1,policy]]]%*%(as.matrix(state_posterior[[factor]][[policy]][,tau-1])))  
             lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
@@ -1294,7 +1294,7 @@ for (t in 1:Time){  # loop over time points
     # Bayesian surprise about 'd'
     if(isfield(MDP, "d")){
       for (factor in 1:NumFactors){
-        Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%state_posterior[[factor]][[policy]][,1]
+        Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%as.matrix(state_posterior[[factor]][[policy]][,1])
       } # End for factor   # ALL EQUAL up to here with Matlab.
     }
     # This calculates the expected free energy from time t to the
