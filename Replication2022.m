@@ -2,6 +2,10 @@
 % Replication attempt 06.2022
 %%%%% Corresponds to the Simp Sim Script
 
+
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %-- Simplified Simulation Script --%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -108,8 +112,7 @@ if isfield(MDP,'a')
         a_complexity{modality} = spm_wnorm(a_prior{modality}).*(a_prior{modality} > 0);
     end
 end  
-a_complexity{1}(2,1,1)
-%%
+
 % Normalise matrices before model inversion/inference
 %--------------------------------------------------------------------------
 
@@ -199,7 +202,7 @@ gamma(1) = 1/posterior_beta; % expected free energy precision
 TimeConst = 4; % time constant for gradient descent
 NumIterations  = 16; % number of message passing iterations
 
-%% Lets go! Message passing and policy selection 
+% Lets go! Message passing and policy selection 
 %--------------------------------------------------------------------------
 
 for t = 1:T % loop over time points  
@@ -261,9 +264,9 @@ for t = 1:T % loop over time points
                                 % (this is what allows hidden states to interact in the likleihood mapping)    
                                 if fj ~= factor        
                                     lnAs = md_dot((lnA),state_posterior{fj}(:,tau),fj);
-                                    %clear lnA
+                                    clear lnA
                                     lnA = lnAs; 
-                                   % clear lnAs
+                                    clear lnAs
                                 end
                             end
                             lnAo(:,tau) = lnAo(:,tau) + lnA;
@@ -304,6 +307,7 @@ for t = 1:T % loop over time points
         F(policy,t) = Fintermediate(end);
       %  clear Fintermediate
     end 
+
 % expected free energy (G) under each policy
     %----------------------------------------------------------------------
     
@@ -321,6 +325,8 @@ for t = 1:T % loop over time points
                 %Gintermediate1(policy) = d_complexity{factor}'*state_posterior{factor}(:,1,policy);
             end 
         end
+    
+       
         % This calculates the expected free energy from time t to the
         % policy horizon which, for deep policies, is the end of the trial T.
         % We can think about this in terms of a 'counterfactual rollout'
@@ -333,27 +339,31 @@ for t = 1:T % loop over time points
             for factor = 1:NumFactors
                 Expected_states{factor} = state_posterior{factor}(:,timestep,policy);
             end 
+            
             % calculate epistemic value term (Bayesian Surprise) and add to
             % expected free energy
-         
-             Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
-            % Gintermediate1(policy) = G_epistemic_value(a(:),Expected_states(:))
-             %  testo(policy) = G_epistemic_value(a(:),Expected_states(:))
-              for modality = 1:NumModalities
+            Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:)) 
+            
+            for modality = 1:NumModalities
                 % prior preferences about outcomes
-                predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
-                Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
-                %Gintermediate1(policy) = 1+predictive_observations_posterior'*(C{modality}(:,t))
+       %         predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
+       %         Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
+
+                % Bayesian surprise about parameters 
+           %     if isfield(MDP,'a')
+     %               Gintermediate(policy) = Gintermediate(policy) - cell_md_dot(a_complexity{modality},{predictive_observations_posterior Expected_states{:}});
               end
-        end
-    end
-          G(:,t) = Gintermediate;  % NOT SURE UPT TO HERE I get results with mean difference around xe-6 or xe-7
-    % infer policy, update precision and calculate BMA over policies
-    %----------------------------------------------------------------------
-    
-    
+            end 
+        end 
+   
+    % store expected free energy for each time point and clear intermediate
+    % variable
+    G(:,t) = Gintermediate;
+    %clear Gintermediate    
 end
 
+predictive_observations_posterior'
+%tes = G_epistemic_value(a(:), Expected_states(:))
 
 %%%% Functions
 %==========================================================================
@@ -462,6 +472,96 @@ A   = A + exp(-16);
 %A   = bsxfun(@minus,1./sum(A,1),1./A)/2;
 end 
 
+function [Y] = spm_cross(X,x,varargin)
+% Multidimensional outer product
+% FORMAT [Y] = spm_cross(X,x)
+% FORMAT [Y] = spm_cross(X)
+%
+% X  - numeric array
+% x  - numeric array
+%
+% Y  - outer product
+%
+% See also: spm_dot
+% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
+
+% handle single inputs
+if nargin < 2  % NUMBER OF INPUT ELEMENTS = nargin
+    if isnumeric(X)
+        Y = X;
+    else
+        Y = spm_cross(X{:});
+    end
+    return    % this part might not benecessary after all? To this extend at least? logic still not fully clear to me
+              % what happens with Y here, if it is again just nargin 1?
+end
+
+% handle cell arrays
+
+if iscell(X), X = spm_cross(X{:}); end
+if iscell(x), x = spm_cross(x{:}); end
+
+% outer product of first pair of arguments (using bsxfun)
+A = reshape(full(X),[size(X) ones(1,ndims(x))]);
+B = reshape(full(x),[ones(1,ndims(X)) size(x)]);
+Y = squeeze(bsxfun(@times,A,B));
+
+% and handle remaining arguments
+for i = 1:numel(varargin)
+    Y = spm_cross(Y,varargin{i});
+end
+end 
+
+
+function varargin = spm_crossT(X,x,varargin)
+% Multidimensional outer product
+% FORMAT [Y] = spm_cross(X,x)
+% FORMAT [Y] = spm_cross(X)
+%
+% X  - numeric array
+% x  - numeric array
+%
+% Y  - outer product
+%
+% See also: spm_dot
+% Copyright (C) 2015 Wellcome Trust Centre for Neuroimaging
+
+% Karl Friston
+% $Id: spm_cross.m 7527 2019-02-06 19:12:56Z karl $
+
+% handle single inputs
+if nargin < 2  % NUMBER OF INPUT ELEMENTS = nargin
+    if isnumeric(X)
+        Y = X;
+    else
+        Y = spm_cross(X{:});
+    end
+    return    % this part might not benecessary after all? To this extend at least? logic still not fully clear to me
+              % what happens with Y here, if it is again just nargin 1?
+end
+
+% handle cell arrays
+
+if iscell(X), X = spm_cross(X{:}); end
+if iscell(x), x = spm_cross(x{:}); end
+
+% outer product of first pair of arguments (using bsxfun)
+A = reshape(full(X),[size(X) ones(1,ndims(x))]);
+B = reshape(full(x),[ones(1,ndims(X)) size(x)]);
+Y = squeeze(bsxfun(@times,A,B));
+
+% and handle remaining arguments
+for i = 1:numel(varargin)
+    Y = spm_cross(Y,varargin{i});
+end
+    
+
+end 
+
+
 %--------------------------------------------------------------------------
 function A  = spm_wnorm(A)
 % This uses the bsxfun function to subtract the inverse of each column
@@ -470,9 +570,6 @@ function A  = spm_wnorm(A)
 A   = A + exp(-16);
 A   = bsxfun(@minus,1./sum(A,1),1./A)/2;
 end 
-
-
-
 
 
 
@@ -885,3 +982,6 @@ mdp.label = label;
 MDP = mdp;
 
 end
+
+
+
