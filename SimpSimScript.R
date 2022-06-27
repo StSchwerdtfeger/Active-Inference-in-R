@@ -149,12 +149,9 @@ B_norm2 = function(y){
   x
 }
 
-################## STILL NO CHANGE, also with all teh transpose things...
-# Could be the matrix structure of B!!!! also include all the other colnorm etx isfield stuff!!!
-
 
 # GreaterZero is used to only keep those values in a list that are 
-# greater than zero refers to line 104 in the Matlab script:
+# greater than zero; refers to line 104 in the Matlab script:
 GreaterZero = function(x){
   TrueGreatZero = function(x){x>0}
   checkLogic = lapply(x,TrueGreatZero) 
@@ -263,45 +260,6 @@ spm_wnorm = function(X,CONV){ # Start
   }
 } # End of function
 
-spm_cross = function(X,x){ # Start of function; depends on the functions nargin() and reshapePRACmod(a,n,m)
-  if (nargin()<2){
-    x = X[[2]] # Set x first, otherwise X gets set before x is set, which
-    X = X[[1]] # leads to error in dimensions...
-    
-    # For reshape:
-    SIZE_X = c(length(X), ndims(X)) # Workaround for the Matlab size function
-    SIZE_x = c(length(x), ndims(x)) # 
-    ONES_X_m = matrix(1,c(SIZE_X))  # Workaround for Matlab ones(1,ndims(X(:)))
-    ONES_x_m = matrix(1,c(SIZE_x))  # 
-    
-    A = reshapePRACmod(X, SIZE_X, ONES_x_m)
-    B = reshapePRACmod(x, ONES_X_m, SIZE_x)
-    Y = A%*%B
-  } # End if nargin <2
-  else if (nargin()==2){ # Start else if
-    if(is.list(x)){
-      x = as.matrix(spm_cross(x))  
-    } # End if list
-    if(is.list(X)){
-      X = as.matrix(spm_cross(X))
-    } # End if list
-    # For reshape:
-    SIZE_X = c(length(X), ndims(X)) # Workaround for the Matlab size function
-    SIZE_x = c(length(x), ndims(x)) # 
-    ONES_X_m = matrix(1,c(SIZE_X))  # Workaround for Matlab ones(1,ndims(X(:)))
-    ONES_x_m = matrix(1,c(SIZE_x))  # 
-    A = reshapePRACmod(X, SIZE_X, ONES_x_m)
-    B = reshapePRACmod(x, ONES_X_m, SIZE_x)
-    if(is.numeric(X)){  
-      Y = lapply(A,"%*%",B)
-      Y = t(as.matrix(Y[[1]]))
-    } # End if numeric
-    else{
-      Y = lapply(A,"%*%",B)
-      Y = array(as.numeric(unlist(Y)), dim = c( nrow(X),ncol(x), nrow(X), ncol(x) ))  
-    } # End else
-  } # End if nargin == 2
-} # End of function
 
 # epistemic value term (Bayesian surprise) in expected free energy 
 G_epistemic_value = function(X1,X2) {
@@ -310,9 +268,10 @@ G_epistemic_value = function(X1,X2) {
   for(i in 1:length(X1)){
     X1arr[[i]] = array(as.numeric(unlist(X1[[i]])), dim = c(nrow(X1[[i]][[1]]),(ncol(X1[[i]][[1]])*length(X1[[i]])) ))  
   }
+  
   # probability distribution over the hidden causes: i.e., Q(s)
-  qx = spm_cross(X2) # this is the outer product of the posterior over states
-  # calculated with respect to itself
+  qx = outer(X2[[1]],X2[[2]], "*") # this is the outer product of the posterior over states
+                                   # calculated with respect to itself
   
   # accumulate expectation of entropy: i.e., E[lnP(o|s)]
   G     = 0
@@ -320,18 +279,19 @@ G_epistemic_value = function(X1,X2) {
   
   find = which(qx > exp(-16)) # replicates the Matlab loop
   
-  for (i in find){
+  for (i in seq_along(find)){
     # probability over outcomes for this combination of causes
-    po = matrix(c(1))
+    po = c(1)
     for (g in 1:length(X1)){
-      po = spm_cross(po,X1arr[[g]][,i]) # X1arr needed here
+      #po = spm_cross(po,X1arr[[g]][,i]) # X1arr needed here
+      po = as.vector(unlist(outer(po,X1arr[[g]][,i], "*"))) # X1arr needed here
     }  
     qo = qo + qx[[i]]*po
-    G = G + qx[[i]]*po*nat_log(po)
+    G = G + qx[[i]]%*%t(as.matrix(po))%*%nat_log(po)
   }
   # subtract entropy of expectations: i.e., E[lnQ(o)]
-  G  = G - qo*nat_log(qo)
-  G = G[[1]] # Only the first value is used (compare Matlab; not sure why)
+  G  = G - qo%*%nat_log(qo)
+  return(G)
 } # End of function G_epistemic_value
 
 
@@ -623,28 +583,28 @@ POMDP_model_structure = function(Gen_model){
                       0, 0, 0, 0,  # Hint
                       0, 0, 0, 0,  # Choose Left Machine
                       0, 0, 0, 0), # Choose Right Machine
-                      nrow = 4, byrow = TRUE)
+                    nrow = 4, byrow = TRUE)
   
   # Move to the Hint state from any other state
   B[[2,2]] = matrix(c(0, 0, 0, 0,  # Start State
                       1, 1, 1, 1,  # Hint
                       0, 0, 0, 0,  # Choose Left Machine
                       0, 0, 0, 0), # Choose Right Machine
-                       nrow = 4, byrow = TRUE)
+                    nrow = 4, byrow = TRUE)
   
   # Move to the Choose Left state from any other state
   B[[2,3]] = matrix(c(0, 0, 0, 0,  # Start State
                       0, 0, 0, 0,  # Hint
                       1, 1, 1, 1,  # Choose Left Machine
                       0, 0, 0, 0), # Choose Right Machine
-                       nrow = 4, byrow = TRUE)
+                    nrow = 4, byrow = TRUE)
   
   # Move to the Choose Right state from any other state
   B[[2,4]] = matrix(c(0, 0, 0, 0,  # Start State
                       0, 0, 0, 0,  # Hint
                       0, 0, 0, 0,  # Choose Left Machine
                       1, 1, 1, 1), # Choose Right Machine        
-                       nrow = 4, byrow = TRUE)
+                    nrow = 4, byrow = TRUE)
   
   # For Number of controllable transitions we will create a dummy
   # array that is without NULL values, but equivalent dimension:
@@ -764,12 +724,12 @@ POMDP_model_structure = function(Gen_model){
   
   V[[1]]        = matrix(c(1, 1, 1, 1, 1,
                            1, 1, 1, 1, 1), # Context state is not controllable
-                               nrow = 2, byrow = TRUE)
+                         nrow = 2, byrow = TRUE)
   
   
   V[[2]]        = matrix(c(1, 2, 2, 3, 4,
                            1, 3, 4, 1, 1), 
-                               nrow = 2, byrow = TRUE)
+                         nrow = 2, byrow = TRUE)
   
   # For V[[2]], columns left to right indicate policies allowing: 
   # 1. staying in the start state 
@@ -1003,12 +963,11 @@ b[b == "NULL"] = NA
 
 # normalize C and transform into log probability
 for(modality in 1:length(C)){
-  C[[modality]] = lapply(C[[modality]],"+",1/32) 
+  C[[modality]] = lapply(C[[modality]],"+",as.numeric(1/32)) 
   for (t in 1:Time){
     C[[modality]][[1]][,t] = nat_log(softmaxCOL(C[[modality]][[1]][,t]))
   }
 }
-
 
 ## normalize D vector
 
@@ -1224,7 +1183,7 @@ for (t in 1:Time){  # loop over time points
                   lnAs = md_dot((lnA),state_posterior[[fj]][[1]][,tau],fj)
                   rm(lnA)
                   lnA = lnAs  
-                  rm(lnAs) # needed?
+                  rm(lnAs) 
                 } # End if fj != factor
               } # End loop fj
               lnAo[,tau] = lnAo[,tau] + lnA
@@ -1236,7 +1195,7 @@ for (t in 1:Time){  # loop over time points
           if (tau == 1){ # first tau
             # forward message
             lnD = nat_log(as.matrix(d[[factor]][[1]])) 
-            # backward message  
+            # backward message# NOTE: due to some issues with B_norm, t() is used outside the function, different to the Matlab script.
             lnBs = nat_log(t(B_norm(as.matrix(b[[factor,V[[factor]][tau,policy]]])))%*%as.matrix(state_posterior[[factor]][[policy]][,tau+1]))
           } # End if tau == 1
           else if (tau == Time){ # last tau  
@@ -1294,9 +1253,10 @@ for (t in 1:Time){  # loop over time points
     # Bayesian surprise about 'd'
     if(isfield(MDP, "d")){
       for (factor in 1:NumFactors){
-        Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%as.matrix(state_posterior[[factor]][[policy]][,1])
-      } # End for factor   # ALL EQUAL up to here with Matlab.
-    }
+        Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%state_posterior[[factor]][[policy]][,1]
+      } # End for factor  
+    } # End of isfield
+    
     # This calculates the expected free energy from time t to the
     # policy horizon which, for deep policies, is the end of the trial T.
     # We can think about this in terms of a 'counterfactual rollout'
@@ -1306,26 +1266,27 @@ for (t in 1:Time){  # loop over time points
     for (timestep in t:horizon){
       # grab expected states for each policy and time
       for (factor in 1:NumFactors){
-   #     Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
+        Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
       } # End for factor
       
       # calculate epistemic value term (Bayesian Surprise) and add to
       # expected free energy
-      # Gintermediate[[policy]] = Gintermediate[[policy]] + G_epistemic_value(a, Expected_states)
+       Gintermediate[[policy]] = as.matrix(Gintermediate[[policy]]) + as.matrix(G_epistemic_value(a, Expected_states))
+
       for (modality in 1:NumModalities){
         # prior preference over outcomes
-   #     predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
-        #Gintermediate[[policy]] = Gintermediate[[policy]]+t(predictive_observations_posterior)*C[[modality]][[1]][,t]
-    #    GinterZERO =  predictive_observations_posterior%*%C[[modality]][[1]][,t]
-    #   Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
-      }
-      
+  #      predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
+  #     Gintermediate[[policy]] = Gintermediate[[policy]]+t(predictive_observations_posterior)%*%C[[modality]][[1]][,t]
+  #      GinterZERO =  t(predictive_observations_posterior)*C[[modality]][[1]][,t]
+  #      Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
+      } #### NEARLY CORRECT RESULT!! t() for predic... doesnt help for GinterZERO; unequal length of vectors is a little tricky
+     
     } # End for horizon
   } # End for policy
   # store expected free energy for each time point and clear intermediate
   # variable
   EFE[[1]][,t] = Gintermediate
-  
+  rm(Gintermediate)
   # infer policy, update precision and calculate BMA over policies
   #----------------------------------------------------------------------
   
@@ -1336,12 +1297,12 @@ for (t in 1:Time){  # loop over time points
   # variational free energy to the posterior over policies when the 
   # difference between the prior and posterior over policies is large
   if (t>1){
-    #    gamma[[t]] = gamma[[t-1]]
+   #     gamma[[t]] = gamma[[t-1]]
   }
   for(ni in 1:NumIterations){
     # posterior and prior over policies:
-    #    policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
-    #   policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
+  #  policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
+  #  policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
     
     # Expected free energy precision (beta):
     #    G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # with %*% scalar (correct?); 
@@ -1360,3 +1321,4 @@ for (t in 1:Time){  # loop over time points
     #  policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
   }
 } # End for Time
+VFE
