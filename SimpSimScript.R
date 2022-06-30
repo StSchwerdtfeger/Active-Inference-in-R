@@ -149,7 +149,6 @@ B_norm2 = function(y){
   x
 }
 
-
 # GreaterZero is used to only keep those values in a list that are 
 # greater than zero; refers to line 104 in the Matlab script:
 GreaterZero = function(x){
@@ -212,23 +211,96 @@ reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
 }
 
 
-cell_md_dot = function(X,x){
+cell_md_dot = function(X,x, a_plain){ 
+  # NOTE: a_plain, i.e., a[[1 to 3]] for DIM, as a{1} still entails 
+  # information on the whole cell using length etc.
+  
   # Convert X to column binded version, similar to G_epistemic_value 
-  Xdim = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
+  Xarr = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
   
   # Initialize dimension
   # DIM = rev(as.matrix(c(1:length(Xdim)) + length(x) - length(Xdim)))
   # Dim vector has to be reversed via rev()
-  DIM = rev(as.matrix(c(1:length(Xdim)) + length(x) - length(Xdim)))
+  DIM = c(1:length(x) + length(a_plain) - length(x))
   
   # Compute dot product using recursive sums
   # To do so, we first do all the reshaping:
   for (d in 1:length(x)){ # Re-shape
-    s = matrix(1, ndims(Xdim))
+    s = matrix(1, ndims(Xarr))
     s[[DIM[[d]]]] = length(x[[d]])  
-    X = apply(array(as.numeric(unlist(x[[d]])), s), FUN=sum, MARGIN = DIM[[d]])
+    s[is.na(s)] = 1                   
+    # Reshape 
+    xResh = array(as.numeric(unlist(x[[d]])), c(s)) 
+    X = bsxFUN(Xarr,xResh, FUN='*')
   }
-  X = as.matrix(X)
+  if (DIM[[d]] == 2){
+    X = apply(X, FUN=rowSums, MARGIN =1)
+    X = X[1,] # NOTE THE DIFF (avoids t(X))
+    return(X)
+  }
+  else if (DIM[[d]] == 3){
+    X = apply(X, FUN=rowSums, MARGIN = 2)
+    X = X[,1] # NOTE DIFF
+    return(X)
+  }
+} # End of function cell_md_dot
+
+
+# Great function! Do not use pracma https://github.com/shouldsee/Rutil/blob/master/R/bsxfun.R
+bsxFUN <-  function(arrA,arrB,FUN = '+',...){ # Depends on broadcast
+  FUN <- match.fun(FUN)
+  arrA <- as.array(arrA)
+  arrB <- as.array(arrB)
+  dimA <- dim(arrA)
+  dimB <- dim(arrB)
+  if (identical(dimA,dimB)){
+    #### Trivial scenario
+    arr = FUN(arrA,arrB, ...)
+    return(arr)
+  }
+  
+  arrL = list(arrA,arrB)
+  orient <- order(sapply(list(dimA,dimB),length))
+  # orient <- order(sapply(arrL,length))
+  arrL = arrL[orient]
+  dim1 <- dim(arrL[[1]])
+  dim2 <- dim(arrL[[2]])
+  dim1 <- c(dim1, rep(1,length(dim2)-length(dim1))) #### Padding smaller array to be of same length
+  dim(arrL[[1]])<-dim1;
+  nonS = (dim1!=1) & (dim2!=1)
+  
+  if( !all(dim1[nonS]== dim2[nonS])){
+    errmsg = sprintf("All non-singleton dimensions must be equal: Array 1 [%s] , Array 2 [%s]",
+                     paste(dimA,collapse = ','),
+                     paste(dimB,collapse = ','))
+    stop(errmsg)
+  }
+  ### Broadcasting to fill singleton dimensions
+  # browser()
+  dims  <- pmax(dim1,dim2)
+  arrL = lapply(arrL,function(x)broadcast(x,dims))
+  arrL = arrL[order(orient)]
+  arr = FUN(arrL[[1]],arrL[[2]], ...)
+  return(arr)
+}
+broadcast  <- function(arr, dims){
+  DIM = dim(arr)
+  EXCLUDE = which(DIM==dims) #### find out the margin that will be excluded
+  if (length(EXCLUDE)!=0){
+    if( !all(DIM[-EXCLUDE]==1) ){
+      errmsg = sprintf("All non-singleton dimensions must be equal: Array 1 [%s] , Wanted shape: [%s]",
+                       paste(DIM,collapse = ','),
+                       paste(dims,collapse = ','))
+      stop(errmsg)
+    }
+    perm <- c(EXCLUDE, seq_along(dims)[-EXCLUDE])
+  }else{
+    perm <- c(seq_along(dims))
+  }
+  
+  arr = array(aperm(arr, perm), dims[perm])
+  arr = aperm(arr, order(perm)
+              ,resize = T)
 }
 
 
@@ -969,6 +1041,14 @@ for(modality in 1:length(C)){
   }
 }
 
+
+C_arr = list()
+for(i in 1:length(C)){
+  C_arr[[i]] = array(as.numeric(unlist(C[[i]])), dim = c(nrow(C[[i]][[1]]),ncol(C[[i]][[1]]) ))
+}
+
+C = C_arr
+
 ## normalize D vector
 
 if(isfield(MDP, "d")){
@@ -1079,10 +1159,10 @@ dim(O) = matrix(c(NumModalities, Time))
 # Still looking for a consistent approach, when enlisting..
 # Orginial matlab line: 209 i  question (within the loop) 
 # lnA = permute(nat_log(a{modal}(outcomes(modal,tau),:,:,:,:,:)),[2 3 4 5 6 1])
-aa <- c(rep(list(array(0, c(3, 2, 4))), 2), list(array(0, c(4, 2, 4))))
+a_perm <- c(rep(list(array(0, c(3, 2, 4))), 2), list(array(0, c(4, 2, 4))))
 for (i in 1:length(A)){
   for (ii in 1:length(A[[1]])){
-    aa[[i]][,,ii] = a[[i]][[ii]] 
+    a_perm[[i]][,,ii] = a[[i]][[ii]] 
   }
 }
 
@@ -1101,7 +1181,7 @@ EFE <- c(rep(list(array(0, c(NumPolicies,Time)))))
 policy_priors = EFE
 
 # Set up list for Expected states:
-Expected_states = rep(list(0),NumFactors)
+Expected_states = list(rep(list(0),NumFactors, Time))
 
 # List for prediction error and normalized_firign_rates
 # prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
@@ -1112,8 +1192,11 @@ for(factor in 1:NumFactors){
 # Normalized firing rates is simply obtained by:
 normalized_firing_rates = prediction_error
 
+# Predictive_observations_posterior
+predictive_observations_posterior = list()
 ##### FOR INCOMPLETE LOOP
 chosen_action=matrix(1,2,2)
+
 
 ### Lets go! Message passing and policy selection 
 #--------------------------------------------------------------------------
@@ -1175,7 +1258,7 @@ for (t in 1:Time){  # loop over time points
               # into the A matrix to grab the likelihood of each hidden state
               # NOTE: makes use of array list "aa" as alternative to "a",
               # to work around the permute() function in Matlab:
-              lnA = nat_log(aa[[modal]][outcomes[[modal, tau]],,])
+              lnA = nat_log(a_perm[[modal]][outcomes[[modal, tau]],,])
               for (fj in 1:NumFactors){
                 # dot product with state vector from other hidden state factors 
                 # (this is what allows hidden states to interact in the likleihood mapping)    
@@ -1246,14 +1329,13 @@ for (t in 1:Time){  # loop over time points
   
   # policy horizon for 'counterfactual rollout' for deep policies (described below)
   horizon = Time
-  
   # loop over policies
   for (policy in 1:NumPolicies){
     
     # Bayesian surprise about 'd'
     if(isfield(MDP, "d")){
       for (factor in 1:NumFactors){
-        Gintermediate[[policy]] = Gintermediate[[policy]] - t(as.matrix(d_complexity[[factor]]))%*%state_posterior[[factor]][[policy]][,1]
+        Gintermediate[[policy]] = Gintermediate[[policy]] - (t(as.matrix(d_complexity[[factor]]))%*%as.matrix(state_posterior[[factor]][[policy]][,1]))
       } # End for factor  
     } # End of isfield
     
@@ -1263,30 +1345,34 @@ for (t in 1:Time){  # loop over time points
     # that asks, "what policy will best resolve uncertainty about the 
     # mapping between hidden states and observations (maximize
     # epistemic value) and bring about preferred outcomes"?
+    
     for (timestep in t:horizon){
       # grab expected states for each policy and time
       for (factor in 1:NumFactors){
-        Expected_states[[factor]] = state_posterior[[factor]][[policy]][,timestep]
+        Expected_states[[factor]] = as.matrix(state_posterior[[factor]][[policy]][,timestep])
       } # End for factor
       
       # calculate epistemic value term (Bayesian Surprise) and add to
       # expected free energy
-       Gintermediate[[policy]] = as.matrix(Gintermediate[[policy]]) + as.matrix(G_epistemic_value(a, Expected_states))
-
+      Gintermediate[[policy]] = as.matrix(Gintermediate[[policy]]) + as.matrix(G_epistemic_value(a, Expected_states))
       for (modality in 1:NumModalities){
         # prior preference over outcomes
-  #      predictive_observations_posterior = cell_md_dot(a[[modality]],Expected_states) # posterior over observations
-  #     Gintermediate[[policy]] = Gintermediate[[policy]]+t(predictive_observations_posterior)%*%C[[modality]][[1]][,t]
-  #      GinterZERO =  t(predictive_observations_posterior)*C[[modality]][[1]][,t]
-  #      Gintermediate[[policy]] = Gintermediate[[policy]]+GinterZERO[[1]] # Necessary, as the vector multiplication is a little tricky here in R
-      } #### NEARLY CORRECT RESULT!! t() for predic... doesnt help for GinterZERO; unequal length of vectors is a little tricky
+        predictive_observations_posterior[[modality]] = cell_md_dot(a[[modality]],Expected_states, a_perm) # posterior over observations
+        Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]])+(t(predictive_observations_posterior[[modality]])%*%C[[modality]][,t])
+        
+        
+        if (isfield(MDP,"a")){
+      #  Comb = c(list(predictive_observations_posterior[[modality]]), Expected_states[])
+  #      Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - (cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
+        }
+      } #### NEARLY CORRECT RESULT!! Weird deviation sum(EFE[2,2]+EFE[3,2])/2 = correct value in Matlab...
      
     } # End for horizon
   } # End for policy
   # store expected free energy for each time point and clear intermediate
   # variable
   EFE[[1]][,t] = Gintermediate
-  rm(Gintermediate)
+  #rm(Gintermediate)
   # infer policy, update precision and calculate BMA over policies
   #----------------------------------------------------------------------
   
@@ -1322,3 +1408,6 @@ for (t in 1:Time){  # loop over time points
   }
 } # End for Time
 VFE
+EFE
+             
+             
