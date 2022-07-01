@@ -34,7 +34,8 @@ SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Scrip
   within the message passing part helped. 
 - I suggest that cell_md_dot() is not working correctly or some order problem occured again. I will also look into 
   the python package for active inference. EFE is just slightly off up to line 1361... Arrays might be the issue here,
-  similar to b.. I'll see.
+  similar to b (which was daunting)... I will get behind the math more as well + watch some ActInfLab on the ATUT to 
+  figure out a more R-like solution for some operations. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
