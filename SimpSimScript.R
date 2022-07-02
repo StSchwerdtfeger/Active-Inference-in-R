@@ -210,41 +210,45 @@ reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
   return(a)
 }
 
-
 cell_md_dot = function(X,x, a_plain){ 
-  # NOTE: a_plain, i.e., a[[1 to 3]] for DIM, as a{1} still entails 
-  # information on the whole cell using length etc.
+  # NOTE: a_plain, i.e., a[[1 to 3]] needed for DIM: in Matlab a{1} still 
+  # entails information on the whole cell length, which is dropped in R
+  # when naming e.g. X = a[[1]]. 
   
   # Convert X to column binded version, similar to G_epistemic_value 
   Xarr = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
-  
+  XarrDIM = Xarr
   # Initialize dimension
-  # DIM = rev(as.matrix(c(1:length(Xdim)) + length(x) - length(Xdim)))
-  # Dim vector has to be reversed via rev()
-  DIM = c(1:length(x) + length(a_plain) - length(x))
+  DIM = (1:length(x)) + length(a) - length(x)
   
   # Compute dot product using recursive sums
   # To do so, we first do all the reshaping:
   for (d in 1:length(x)){ # Re-shape
-    s = matrix(1, ndims(Xarr))
+    s = matrix(1, ndims(XarrDIM))
     s[[DIM[[d]]]] = length(x[[d]])  
     s[is.na(s)] = 1                   
     # Reshape 
     xResh = array(as.numeric(unlist(x[[d]])), c(s)) 
-    X = bsxFUN(Xarr,xResh, FUN='*')
+    for (i in 1:length(a_plain[[1]])){ 
+      if(length(xResh[1,1,])==1){
+        Xarr[,,i] = Xarr[,,i]*as.vector(xResh)  
+      }
+      else {
+        Xarr[,,i] = Xarr[,,i]*xResh[,,i]
+      }
+    }
+    # Summing over second and thrid dimension
+    if (DIM[[d]] == 2){
+      Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+      Xarr = array(as.numeric(unlist(t(Xarr))), c(ncol(Xarr),1, nrow(Xarr))) 
+    }
+    else if (DIM[[d]] == 3){
+      Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 3
+    }
   }
-  if (DIM[[d]] == 2){
-    X = apply(X, FUN=rowSums, MARGIN =1)
-    X = X[1,] # NOTE THE DIFF (avoids t(X))
-    return(X)
-  }
-  else if (DIM[[d]] == 3){
-    X = apply(X, FUN=rowSums, MARGIN = 2)
-    X = X[,1] # NOTE DIFF
-    return(X)
-  }
+  return(Xarr) 
+  # return(Xarr)
 } # End of function cell_md_dot
-
 
 # Great function! Do not use pracma https://github.com/shouldsee/Rutil/blob/master/R/bsxfun.R
 bsxFUN <-  function(arrA,arrB,FUN = '+',...){ # Depends on broadcast
@@ -1078,7 +1082,7 @@ for(i in 1){
 # numbers of transitions, policies and states
 NumModalities = length(a)         # number of outcome factors
 NumFactors = length(d)            # number of hidden state factors
-NumPolicies = ncol(V[[1]])   # number of allowable policies
+NumPolicies = ncol(V[[1]])        # number of allowable policies
 
 # Setup matrix
 NumStates = matrix(0,nrow=NumFactors)
@@ -1287,7 +1291,7 @@ for (t in 1:Time){  # loop over time points
             # Backward message:
             lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
           }
-          else if (1 < tau & tau < Time){ # just else { } is enough too
+          else{ #} if (1 < tau & tau < Time){ # just else { } is enough too
             # foward message
             lnD  = nat_log(b[[factor,V[[factor]][tau-1,policy]]]%*%(as.matrix(state_posterior[[factor]][[policy]][,tau-1])))  
             lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
@@ -1357,13 +1361,13 @@ for (t in 1:Time){  # loop over time points
       Gintermediate[[policy]] = as.matrix(Gintermediate[[policy]]) + as.matrix(G_epistemic_value(a, Expected_states))
       for (modality in 1:NumModalities){
         # prior preference over outcomes
-        predictive_observations_posterior[[modality]] = cell_md_dot(a[[modality]],Expected_states, a_perm) # posterior over observations
+        predictive_observations_posterior[[modality]] = cell_md_dot(a[[modality]],Expected_states, a) # posterior over observations
         Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]])+(t(predictive_observations_posterior[[modality]])%*%C[[modality]][,t])
         
         
         if (isfield(MDP,"a")){
-      #  Comb = c(list(predictive_observations_posterior[[modality]]), Expected_states[])
-  #      Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - (cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
+          Comb = c(list(predictive_observations_posterior[[modality]]), Expected_states[])
+         # Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - (cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
         }
       } #### NEARLY CORRECT RESULT!! Weird deviation sum(EFE[2,2]+EFE[3,2])/2 = correct value in Matlab...
      
@@ -1408,6 +1412,5 @@ for (t in 1:Time){  # loop over time points
   }
 } # End for Time
 VFE
+predictive_observations_posterior
 EFE
-             
-             
