@@ -32,10 +32,7 @@ SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Scrip
 - Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
 - Script now runs VFE correctly. Issue was that list objects are not always treated as double()... as.matrix() 
   within the message passing part helped. 
-- I suggest that cell_md_dot() is not working correctly or some order problem occured again. I will also look into 
-  the python package for active inference. EFE is just slightly off up to line 1361... Arrays might be the issue here,
-  similar to b (which was daunting)... I will get behind the math more as well + watch some ActInfLab on the ATUT to 
-  figure out a more R-like solution for some operations. 
+- cell_md_dot is now working correctly, but not for the second use in the script; still looking for a flexible version.
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
