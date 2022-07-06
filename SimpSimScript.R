@@ -54,7 +54,7 @@ Gen_model = 2 # as in the main tutorial code, many parameters
 # Libraries #
 #############
 
-library(pracma) # Check if necessary (change ones(), zeros() into matrix(1,n,m), matrix(0, n, m))
+#library(pracma) # problay necessary for imagesc() etc.
 
 #############
 # Functions # 
@@ -210,55 +210,6 @@ reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
   return(a)
 }
 
-cell_md_dot = function(X,x, a_plain){ # Works but probably needs improvement to be more flexible
-  # NOTE: a_plain, i.e., a[[1 to 3]] needed for DIM: in Matlab a{1} still 
-  # entails information on the whole cell length, which is dropped in R
-  # when naming e.g. X = a[[1]]. 
-  
-  # Convert X to column binded version, similar to G_epistemic_value 
-  Xarr = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
-  XarrDIM = Xarr
-  # Initialize dimension
-  DIM = (1:length(x)) + length(a) - length(x)
-  
-  # Compute dot product using recursive sums
-  # To do so, we first do all the reshaping:
-  for (d in 1:length(x)){ # Re-shape
-    s = matrix(1, ndims(XarrDIM))
-    s[[DIM[[d]]]] = length(x[[d]])  
-    s[is.na(s)] = 1                   
-    # Reshape 
-    xResh = array(as.numeric(unlist(x[[d]])), c(s)) 
-    for (i in 1:length(a_plain[[1]])){ 
-      if(length(xResh[1,1,])==1){
-        Xarr[,,i] = Xarr[,,i]*as.vector(xResh)  
-      }
-      else {
-        Xarr[,,i] = Xarr[,,i]*xResh[,,i]
-      }
-    }
-    # Summing over seconda and third dimension (use sum(cell_md_dot()) for Comb 
-    if (DIM[[d]] == 1){
-    #  Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
-    }
-    if (DIM[[d]] == 2){
-      Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
-      Xarr = array(as.numeric(unlist(t(Xarr))), c(ncol(Xarr),1, nrow(Xarr))) 
-    }
-    else if (DIM[[d]] == 3){
-      Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 3
-    }
-    else if(DIM[[d]] == 4){
-#      Xarr= rowSums(Xarr, dims  =2)
- #     Xarr = colSums(Xarr)
-#      Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 4
- #     Xarr = Xarr[1]
-    }
-  }
-  return(Xarr) 
-  # return(Xarr)
-} # End of function cell_md_dot
-
 # Great function, but currently not in use... Do not use pracma https://github.com/shouldsee/Rutil/blob/master/R/bsxfun.R
 bsxFUN <-  function(arrA,arrB,FUN = '+',...){ # Depends on broadcast
   FUN <- match.fun(FUN)
@@ -321,6 +272,50 @@ broadcast  <- function(arr, dims){
 #################
 # SPM Functions #
 #################
+
+cell_md_dot = function(X,x, a_plain){ # Works but probably needs improvement to be more flexible
+  # NOTE: a_plain, i.e., a[[1 to 3]] needed for DIM: in Matlab a{1} still 
+  # entails information on the whole cell length, which is dropped in R
+  # when naming e.g. X = a[[1]]. 
+  
+  # Convert X to column binded version, similar to G_epistemic_value 
+  Xarr = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
+  XarrDIM = Xarr
+  # Initialize dimension
+  DIM = (1:length(x)) + length(a) - length(x)
+  
+  # Compute dot product using recursive sums
+  # To do so, we first do all the reshaping:
+  for (d in 1:length(x)){ # Re-shape
+    s = matrix(1, ndims(XarrDIM))
+    s[[DIM[[d]]]] = length(x[[d]])  
+    s[is.na(s)] = 1                   
+    # Reshape 
+    xResh = array(as.numeric(unlist(x[[d]])), c(s)) 
+    for (i in 1:length(a_plain[[1]])){ 
+      if(length(xResh[1,1,])==1){
+        Xarr[,,i] = Xarr[,,i]*as.vector(xResh)  
+      }
+      else {
+        Xarr[,,i] = Xarr[,,i]*xResh[,,i]
+      }
+    }
+    # Summing over seconda and third dimension (use sum(cell_md_dot()) for Comb 
+    if (DIM[[d]] == 1){
+      #  Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+    }
+    if (DIM[[d]] == 2){
+      Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+      Xarr = array(as.numeric(unlist(t(Xarr))), c(ncol(Xarr),1, nrow(Xarr))) 
+    }
+    else if (DIM[[d]] == 3){
+      Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 3
+    }
+  }
+  return(Xarr) 
+  # return(Xarr)
+} # End of function cell_md_dot
+
 
 spm_wnorm = function(X,CONV){ # Start
   if(CONV == FALSE){
@@ -422,8 +417,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Predim list, otherwise assigning via e.e D[[1]][[1]] is not possible, but
   # necessary for the loop later on:
-  D[[1]] = c(rep(list(zeros(2,1)),1)) # can be random.
-  D[[2]] = c(rep(list(zeros(2,1)),1)) 
+  D[[1]] = c(rep(list(matrix(0,c(2,1))),1)) # can be random.
+  D[[2]] = c(rep(list(matrix(0,c(2,1))),1)) 
   
   # For the 'context' state factor, we can specify that the 'left better' 
   # context (i.e., where the left slot machine is more likely to win)
@@ -460,8 +455,8 @@ POMDP_model_structure = function(Gen_model){
   
   # Setup vector list for d
   d = c(list())
-  d[[1]] = c(rep(list(zeros(2,1)),1)) # can be random.
-  d[[2]] = c(rep(list(zeros(2,1)),1)) # can be random.
+  d[[1]] = c(rep(list(matrix(0,c(2,1))),1)) # can be random.
+  d[[2]] = c(rep(list(matrix(0,c(2,1))),1)) # can be random.
   
   
   # For context beliefs, we can specify that the agent starts out believing 
@@ -731,11 +726,11 @@ POMDP_model_structure = function(Gen_model){
   # Setup vector list for C
   C = c(list())
   
-  C[[1]] = c(rep(list(zeros(No[1],Time)),1))
-  C[[2]] = c(rep(list(zeros(No[2],Time)),1))
-  C[[3]] = c(rep(list(zeros(No[3],Time)),1))
+  C[[1]] = c(rep(list(matrix(0,nrow=No[1],ncol=Time))))
+  C[[2]] = c(rep(list(matrix(0,nrow=No[2],ncol=Time))))
+  C[[3]] = c(rep(list(matrix(0,nrow=No[1],ncol=Time))))
   
-  
+  c(rep(list(matrix(0,nrow=No[1],ncol=Time))))
   # Alternative for an overview below, but otherwise not necessary:
   
   # Hints
@@ -803,9 +798,7 @@ POMDP_model_structure = function(Gen_model){
   V = vector("list", 1*2)
   dim(V) = matrix(c(1,2))
   
-  # Pre dim
-  #V[[1]] = c(rep(list(zeros(NumFactors,NumPolicies)),(Time-1)))
-  
+
   # Deep policies v[[]]
   
   V[[1]]        = matrix(c(1, 1, 1, 1, 1,
@@ -1229,10 +1222,6 @@ action_posterior_intermediate = t(matrix(0, c(last(NumControllable_transitions),
 action_posterior = rep(list(action_posterior_intermediate), Time-1)
 
 
-##### FOR INCOMPLETE LOOP
-chosen_action=matrix(1,2,2)
-
-
 ### Lets go! Message passing and policy selection 
 #--------------------------------------------------------------------------
 
@@ -1453,7 +1442,7 @@ for (t in 1:Time){  # loop over time points
     for (tau in 1:Time){
       # reshape state_posterior into a matrix of size NumStates(factor) x NumPolicies and then dot with policies
       state_postReshape = array(as.numeric(unlist(state_posterior[[factor]])), c(NumStates[[factor]],Time, NumPolicies))
-      BMA_states[[factor]][,tau] = as.matrix(state_postReshape[,t,])%*%as.matrix(policy_posteriors[,t]) # note posteriors!
+      BMA_states[[factor]][,tau] = as.matrix(state_postReshape[,tau,])%*%as.vector(policy_posteriors[,t]) # note posteriors!
     } # End for tau
   } # End for factor
   
@@ -1494,10 +1483,11 @@ for (t in 1:Time){  # loop over time points
         chosen_action[[factors,t]] = action[[ind]]
       } # End if >2
     } # End for factors
-  } # End if t < Time
-  
+} # End if t < Time
 } # End for Time
 
 EFE
 VFE
-
+chosen_action
+action_posterior
+BMA_states
