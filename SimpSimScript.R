@@ -1003,7 +1003,7 @@ if (isfield(MDP, "d")){
     # encouraging 'novel' behaviour 
     d_complexity[[factor]] = spm_wnorm(d_prior[[factor]], CONV = TRUE)
   } # End for length(MDP$d)
-}# End isfield d
+} # End isfield d
 
 
 # complexity of a maxtrix concentration parameters
@@ -1100,7 +1100,7 @@ NumControllable_transitions = matrix(0,nrow=NumFactors)
 
 for(factor in 1:NumFactors){
   NumStates[[factor]] = nrow(MDP$Bdim[[factor]][,,1])
-  NumControllable_transitions[[factor]] = length(MDP$Bdim[[factor]][,,1])
+  NumControllable_transitions[[factor]] = length(MDP$Bdim[[factor]][1,1,])
 }
 
 # Setup vector list for state_posterior:
@@ -1129,12 +1129,12 @@ policy_posteriors = matrix(1,NumPolicies,Time)/NumPolicies
 policy_posterior = policy_posteriors
 
 # initialize posterior over actions:
-chosen_action = matrix(0, nrow = length(B), ncol = Time-1)
+chosen_action = matrix(0, nrow = nrow(B), ncol = Time-1)
 
 # if there is only one policy
 for(factor in 1:NumFactors){
   if(NumControllable_transitions[[factor]]==1){
-    chosen_action[factor,] = matrix(1,nrow =1,ncol=Time-1)
+    chosen_action[factor,] = matrix(1,nrow=1,ncol=Time-1)
   }
 }
 
@@ -1218,6 +1218,17 @@ policy_posterior_updates = list()
 # policy_posterior
 policy_posterior = policy_posteriors # NOTE DIFFERENCE
 
+# List for BMA_states
+BMA_states = list()
+for (factor in 1:NumFactors){
+  BMA_states[[factor]] = matrix(0, NumStates[[factor]], Time)
+}
+
+# Action posterior (intermediate part will be re-initialized within the loop)
+action_posterior_intermediate = t(matrix(0, c(last(NumControllable_transitions),1)))
+action_posterior = rep(list(action_posterior_intermediate), Time-1)
+
+
 ##### FOR INCOMPLETE LOOP
 chosen_action=matrix(1,2,2)
 
@@ -1243,7 +1254,12 @@ for (t in 1:Time){  # loop over time points
       prob_state = D[[factor]][[1]] # sample initial state T = 1 
     } #
     else if (t > 1){ # identy for every turn necessary? 
-      prob_state <- B[[factor,true_states[[factor, t-1]]]][,chosen_action[[factor, t-1]]]
+      if (factor ==1){
+        prob_state = B[[1,1]][,true_states[[factor, t-1]]]
+      }
+      else{
+        prob_state = B[[factor,chosen_action[[factor, t-1]]]][,true_states[[factor, t-1]]]
+      }
     } #
     true_states[[factor,t]] = which(cumsum(prob_state)>=runif(1))[1]
   } # End loop factor
@@ -1342,7 +1358,7 @@ for (t in 1:Time){  # loop over time points
     Fintermediate = colSums(Fintermediate)     # sum over tau and squeeze into 16x3 matrix (squeeze here in R not needed)
     # store variational free energy at last iteration of message passing
     VFE[[1]][policy,t] = last(Fintermediate[,t]) # Fintermediate[NumIterations,t]
-    #rm(Fintermediate)
+    rm(Fintermediate)
   } # End loop policies
   
   # expected free energy (G) under each policy
@@ -1396,7 +1412,7 @@ for (t in 1:Time){  # loop over time points
   # store expected free energy for each time point and clear intermediate
   # variable
   EFE[[1]][,t] = Gintermediate
-  #rm(Gintermediate)
+  rm(Gintermediate)
   
   # infer policy, update precision and calculate BMA over policies
   #----------------------------------------------------------------------
@@ -1431,11 +1447,57 @@ for (t in 1:Time){  # loop over time points
     policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
   } # End for ni
   
+  # bayesian model average of hidden states (averaging over policies)
+  #BMA_states = rep(list(0), NumFactors, Time)# initializes list
+  for (factor in 1:NumFactors){
+    for (tau in 1:Time){
+      # reshape state_posterior into a matrix of size NumStates(factor) x NumPolicies and then dot with policies
+      state_postReshape = array(as.numeric(unlist(state_posterior[[factor]])), c(NumStates[[factor]],Time, NumPolicies))
+      BMA_states[[factor]][,tau] = as.matrix(state_postReshape[,t,])%*%as.matrix(policy_posteriors[,t]) # note posteriors!
+    } # End for tau
+  } # End for factor
   
+  # action selection
+  #----------------------------------------------------------------------
+    
+  # The probability of emitting each particular action is a softmax function 
+  # of a vector containing the probability of each action summed over 
+  # each policy. E.g. if there are three policies, a posterior over policies of 
+  # [.4 .4 .2], and two possible actions, with policy 1 and 2 leading 
+  # to action 1, and policy 3 leading to action 2, the probability of 
+  # each action is [.8 .2]. This vector is then passed through a softmax function 
+  # controlled by the inverse temperature parameter alpha which by default is extremely 
+  # large (alpha = 512), leading to deterministic selection of the action with 
+  # the highest probability. 
+  
+  if (t < Time){
+    # marginal posterior over action (for each factor)
+    action_posterior_intermediate = t(matrix(0, c(last(NumControllable_transitions),1)))
+    for (policy in 1:NumPolicies){ # loop over number of policies
+      Varr = array(as.numeric(unlist(V)), c(Time-1,NumPolicies, NumFactors))
+      sub = Varr[t,policy,]
+      action_posterior_intermediate[[sub[[1]],sub[[2]]]] = action_posterior_intermediate[[sub[[1]],sub[[2]]]] + policy_posteriors[[policy,t]]
+    } # End for policy      
+    
+    # action selection (softmax function of action potential)
+    # NOTE use casual log instead of nat_log here (equivalent to Matlab script)
+    action_posterior_intermediate = softmax(alpha*log(action_posterior_intermediate))
+    action_posterior[[t]] = action_posterior_intermediate[]
+    
+    # next action - sampled from marginal posterior
+    ControlIndex = which(NumControllable_transitions > 1) 
+    action = 1:1:NumControllable_transitions[[ControlIndex]]
+    
+    for (factors in 1:NumFactors){ 
+      if (NumControllable_transitions[[factors]] > 2){ # if there is more than one control state
+        ind = which(runif(1)<cumsum(action_posterior_intermediate))[[1]]
+        chosen_action[[factors,t]] = action[[ind]]
+      } # End if >2
+    } # End for factors
+  } # End if t < Time
   
 } # End for Time
-VFE
-EFE
-policy_posterior
 
+EFE
+VFE
 
