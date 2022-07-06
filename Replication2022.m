@@ -5,7 +5,6 @@
 
 
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %-- Simplified Simulation Script --%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -183,8 +182,7 @@ end
 policy_posteriors = ones(NumPolicies,T)/NumPolicies; 
 
 % initialize posterior over actions
-%chosen_action = zeros(ndims(B),T-1);
-chosen_action = ones(ndims(B),T-1);
+chosen_action = zeros(ndims(B),T-1);
     
 % if there is only one policy
 for factors = 1:NumFactors 
@@ -193,7 +191,7 @@ for factors = 1:NumFactors
     end
 end
 MDP.chosen_action = chosen_action;
-a_complexity{1}(2,2)
+
 % initialize expected free energy precision (beta)
 posterior_beta = 1;
 gamma(1) = 1/posterior_beta; % expected free energy precision
@@ -201,6 +199,7 @@ gamma(1) = 1/posterior_beta; % expected free energy precision
 % message passing variables
 TimeConst = 4; % time constant for gradient descent
 NumIterations  = 16; % number of message passing iterations
+
 
 % Lets go! Message passing and policy selection 
 %--------------------------------------------------------------------------
@@ -244,7 +243,7 @@ for t = 1:T % loop over time points
         O{modality,t} = vec;
         clear vec
     end 
-   
+    
     % marginal message passing (minimize F and infer posterior over states)
     %----------------------------------------------------------------------
     
@@ -271,7 +270,7 @@ for t = 1:T % loop over time points
                             end
                             lnAo(:,tau) = lnAo(:,tau) + lnA;
                         end
-                    end 
+                    end
                     % 'forwards' and 'backwards' messages at each tau
                     if tau == 1 % first tau
                         lnD = nat_log(d{factor}); % forward message
@@ -282,12 +281,12 @@ for t = 1:T % loop over time points
                     else % 1 > tau > T
                         lnD  = nat_log(b{factor}(:,:,V(tau-1,policy,factor))*state_posterior{factor}(:,tau-1,policy));% forward message
                         lnBs = nat_log(B_norm(b{factor}(:,:,V(tau,policy,factor))')*state_posterior{factor}(:,tau+1,policy));% backward message
-                    end     
+                    end
                     % here we both combine the messages and perform a gradient
                     % descent on the posterior 
                     v_depolarization = v_depolarization + (.5*lnD + .5*lnBs + lnAo(:,tau) - v_depolarization)/TimeConst;
                     % variational free energy at each time point
-                    Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)))  ;
+                    Ft(tau,Ni,t,factor) = state_posterior{factor}(:,tau,policy)'*(.5*lnD + .5*lnBs + lnAo(:,tau) - nat_log(state_posterior{factor}(:,tau,policy)));
                     % update posterior by running v through a softmax 
                     state_posterior{factor}(:,tau,policy) = (exp(v_depolarization)/sum(exp(v_depolarization)));    
                     % store state_posterior (normalised firing rate) from each epoch of
@@ -296,25 +295,26 @@ for t = 1:T % loop over time points
                     % store v (non-normalized log posterior or 'membrane potential') 
                     % from each epoch of gradient descent for each tau
                     prediction_error{factor}(Ni,:,tau,t,policy) = v_depolarization;
-                    %clear v
+                    clear v
                 end
             end
-        end  
-        % variational free energy for each policy (F)
-        Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
-        Fintermediate = squeeze(sum(Fintermediate,1));%squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
-        % store variational fre e energy at last iteration of message passing
-        F(policy,t) = Fintermediate(end);
-      %  clear Fintermediate
+        end        
+      % variational free energy for each policy (F)
+      Fintermediate = sum(Ft,4); % sum over hidden state factors (Fintermediate is an intermediate F value)
+      Fintermediate = squeeze(sum( Fintermediate,1)); % sum over tau and squeeze into 16x3 matrix
+      % store variational fre e energy at last iteration of message passing
+      F(policy,t) = Fintermediate(end);
+      clear Fintermediate
     end 
-
-% expected free energy (G) under each policy
+    
+    % expected free energy (G) under each policy
     %----------------------------------------------------------------------
     
     % initialize intermediate expected free energy variable (Gintermediate) for each policy
     Gintermediate = zeros(NumPolicies,1);  
     % policy horizon for 'counterfactual rollout' for deep policies (described below)
     horizon = T;
+
     % loop over policies
     for policy = 1:NumPolicies
         
@@ -322,11 +322,9 @@ for t = 1:T % loop over time points
         if isfield(MDP,'d')
             for factor = 1:NumFactors
                 Gintermediate(policy) = Gintermediate(policy) - d_complexity{factor}'*state_posterior{factor}(:,1,policy);
-                %Gintermediate1(policy) = d_complexity{factor}'*state_posterior{factor}(:,1,policy);
             end 
         end
-    
-       
+         
         % This calculates the expected free energy from time t to the
         % policy horizon which, for deep policies, is the end of the trial T.
         % We can think about this in terms of a 'counterfactual rollout'
@@ -342,29 +340,120 @@ for t = 1:T % loop over time points
             
             % calculate epistemic value term (Bayesian Surprise) and add to
             % expected free energy
-            Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:)) 
+            Gintermediate(policy) = Gintermediate(policy) + G_epistemic_value(a(:),Expected_states(:));
             
             for modality = 1:NumModalities
                 % prior preferences about outcomes
-       %         predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
-       %         Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
+                predictive_observations_posterior = cell_md_dot(a{modality},Expected_states(:)); %posterior over observations
+                Gintermediate(policy) = Gintermediate(policy) + predictive_observations_posterior'*(C{modality}(:,t));
 
                 % Bayesian surprise about parameters 
-           %     if isfield(MDP,'a')
-     %               Gintermediate(policy) = Gintermediate(policy) - cell_md_dot(a_complexity{modality},{predictive_observations_posterior Expected_states{:}});
-              end
+                if isfield(MDP,'a')
+                    Gintermediate(policy) = Gintermediate(policy) - cell_md_dot(a_complexity{modality},{predictive_observations_posterior Expected_states{:}});
+                end
             end 
         end 
-   
+    end 
+    
     % store expected free energy for each time point and clear intermediate
     % variable
     G(:,t) = Gintermediate;
-    %clear Gintermediate    
-end
+    clear Gintermediate
+    
+    % infer policy, update precision and calculate BMA over policies
+    %----------------------------------------------------------------------
+    
 
-predictive_observations_posterior'
-%tes = G_epistemic_value(a(:), Expected_states(:))
+    % loop over policy selection using variational updates to gamma to
+    % estimate the optimal contribution of expeceted free energy to policy
+    % selection. This has the effect of down-weighting the contribution of 
+    % variational free energy to the posterior over policies when the 
+    % difference between the prior and posterior over policies is large
+    
+    if t > 1
+        gamma(t) = gamma(t - 1);
+    end
+    for ni = 1:Ni 
+        % posterior and prior over policies
+        policy_priors(:,t) = exp(log(E) + gamma(t)*G(:,t))/sum(exp(log(E) + gamma(t)*G(:,t)));% prior over policies
+        policy_posteriors(:,t) = exp(log(E) + gamma(t)*G(:,t) + F(:,t))/sum(exp(log(E) + gamma(t)*G(:,t) + F(:,t))); % posterior over policies
+        
+        % expected free energy precision (beta)
+        G_error = (policy_posteriors(:,t) - policy_priors(:,t))'*G(:,t);
+        beta_update = posterior_beta - beta + G_error; % free energy gradient w.r.t gamma
+        posterior_beta = posterior_beta - beta_update/2; 
+        gamma(t) = 1/posterior_beta;
+        
+        % simulate dopamine responses
+        n = (t - 1)*Ni + ni;
+        gamma_update(n,1) = gamma(t); % simulated neural encoding of precision (posterior_beta^-1)
+                                      % at each iteration of variational updating
+        policy_posterior_updates(:,n) = policy_posteriors(:,t); % neural encoding of policy posteriors
+        policy_posterior(1:NumPolicies,t) = policy_posteriors(:,t); % record posterior over policies 
+    end 
+    
+    % bayesian model average of hidden states (averaging over policies)
+    for factor = 1:NumFactors
+        for tau = 1:T
+            % reshape state_posterior into a matrix of size NumStates(factor) x NumPolicies and then dot with policies
+            BMA_states{factor}(:,tau) = reshape(state_posterior{factor}(:,tau,:),NumStates(factor),NumPolicies)*policy_posteriors(:,t);
+        end
+    end
+    
+    % action selection
+    %----------------------------------------------------------------------
+    
+    % The probability of emitting each particular action is a softmax function 
+    % of a vector containing the probability of each action summed over 
+    % each policy. E.g. if there are three policies, a posterior over policies of 
+    % [.4 .4 .2], and two possible actions, with policy 1 and 2 leading 
+    % to action 1, and policy 3 leading to action 2, the probability of 
+    % each action is [.8 .2]. This vector is then passed through a softmax function 
+    % controlled by the inverse temperature parameter alpha which by default is extremely 
+    % large (alpha = 512), leading to deterministic selection of the action with 
+    % the highest probability. 
+    
+    if t < T
 
+        % marginal posterior over action (for each factor)
+        action_posterior_intermediate = zeros([NumControllable_transitions(end),1])';
+
+        for policy = 1:NumPolicies % loop over number of policies
+            sub = num2cell(V(t,policy,:));
+            action_posterior_intermediate(sub{:}) = action_posterior_intermediate(sub{:}) + policy_posteriors(policy,t);
+        end
+        
+        % action selection (softmax function of action potential)
+        sub = repmat({':'},1,NumFactors);
+        action_posterior_intermediate(:) = (exp(alpha*log(action_posterior_intermediate(:)))/sum(exp(alpha*log(action_posterior_intermediate(:))))); 
+        action_posterior(sub{:},t) = action_posterior_intermediate;
+
+        % next action - sampled from marginal posterior
+        ControlIndex = find(NumControllable_transitions>1);
+        action = (1:1:NumControllable_transitions(ControlIndex)); % 1:number of control states
+        for factors = 1:NumFactors 
+            if NumControllable_transitions(factors) > 2 % if there is more than one control state
+                ind = find(rand < cumsum(action_posterior_intermediate(:)),1);  
+                MDP.chosen_action(factor,t) = action(ind);
+            end
+        end
+
+    end % end of state and action selection   
+         
+end % end loop over time points
+
+
+%test= find(rand < cumsum(action_posterior_intermediate(:)),1)
+%x=magic(4)
+%k= find(cumsum(action_posterior_intermediate(:))>.5,1)
+%sub{2}
+%%action_posterior(1,2,2)
+%test= alpha*log(action_posterior_intermediate(:))
+%test1=log(action_posterior_intermediate(:))
+% marginal posterior over action (for each factor)
+   %     action_posterior_intermediate = zeros([NumControllable_transitions(end),1])'
+%test1=reshape(state_posterior{1}(:,1,:),NumStates(1),NumPolicies)*policy_posteriors(:,1)
+%test=reshape(state_posterior{1}(:,1,:),NumStates(1),NumPolicies)* 
 %%%% Functions
 %==========================================================================
 
@@ -418,12 +507,30 @@ DIM = (1:numel(x)) + ndims(X) - numel(x);
 for d = 1:numel(x)
     s         = ones(1,ndims(X));
     s(DIM(d)) = numel(x{d});
+  %  tet=reshape(full(x{d}),s)
     X         = bsxfun(@times,X,reshape(full(x{d}),s));
     X         = sum(X,DIM(d));
 end
 
 % eliminate singleton dimensions
-X = squeeze(X);
+%X = squeeze(X);
+end 
+
+function X = cell_md_dotT(X,x)
+% initialize dimensions
+DIM = (1:numel(x)) + ndims(X) - numel(x);
+
+% compute dot product using recursive sums (and bsxfun)
+for d = 1:numel(x)
+    s         = ones(1,ndims(X));
+    s(DIM(d)) = numel(x{d});
+    t=reshape(full(x{d}),s)
+    X         = bsxfun(@times,X,reshape(full(x{d}),s));
+     %  X         = sum(X,DIM(d));
+end
+
+% eliminate singleton dimensions
+%X = squeeze(X);
 end 
 
 % epistemic value term (Bayesian surprise) in expected free energy 
@@ -982,6 +1089,10 @@ mdp.label = label;
 MDP = mdp;
 
 end
+
+
+
+
 
 
 
