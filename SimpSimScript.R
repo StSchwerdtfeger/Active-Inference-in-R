@@ -210,7 +210,7 @@ reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
   return(a)
 }
 
-cell_md_dot = function(X,x, a_plain){ 
+cell_md_dot = function(X,x, a_plain){ # Works but probably needs improvement to be more flexible
   # NOTE: a_plain, i.e., a[[1 to 3]] needed for DIM: in Matlab a{1} still 
   # entails information on the whole cell length, which is dropped in R
   # when naming e.g. X = a[[1]]. 
@@ -237,7 +237,10 @@ cell_md_dot = function(X,x, a_plain){
         Xarr[,,i] = Xarr[,,i]*xResh[,,i]
       }
     }
-    # Summing over second and thrid dimension
+    # Summing over seconda and third dimension (use sum(cell_md_dot()) for Comb 
+    if (DIM[[d]] == 1){
+    #  Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+    }
     if (DIM[[d]] == 2){
       Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
       Xarr = array(as.numeric(unlist(t(Xarr))), c(ncol(Xarr),1, nrow(Xarr))) 
@@ -245,12 +248,18 @@ cell_md_dot = function(X,x, a_plain){
     else if (DIM[[d]] == 3){
       Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 3
     }
+    else if(DIM[[d]] == 4){
+#      Xarr= rowSums(Xarr, dims  =2)
+ #     Xarr = colSums(Xarr)
+#      Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 4
+ #     Xarr = Xarr[1]
+    }
   }
   return(Xarr) 
   # return(Xarr)
 } # End of function cell_md_dot
 
-# Great function! Do not use pracma https://github.com/shouldsee/Rutil/blob/master/R/bsxfun.R
+# Great function, but currently not in use... Do not use pracma https://github.com/shouldsee/Rutil/blob/master/R/bsxfun.R
 bsxFUN <-  function(arrA,arrB,FUN = '+',...){ # Depends on broadcast
   FUN <- match.fun(FUN)
   arrA <- as.array(arrA)
@@ -287,6 +296,7 @@ bsxFUN <-  function(arrA,arrB,FUN = '+',...){ # Depends on broadcast
   arr = FUN(arrL[[1]],arrL[[2]], ...)
   return(arr)
 }
+
 broadcast  <- function(arr, dims){
   DIM = dim(arr)
   EXCLUDE = which(DIM==dims) #### find out the margin that will be excluded
@@ -1198,6 +1208,16 @@ normalized_firing_rates = prediction_error
 
 # Predictive_observations_posterior
 predictive_observations_posterior = list()
+
+# gamma_update
+gamma_update = list()
+
+# policy_posterior_updates
+policy_posterior_updates = list()
+
+# policy_posterior
+policy_posterior = policy_posteriors # NOTE DIFFERENCE
+
 ##### FOR INCOMPLETE LOOP
 chosen_action=matrix(1,2,2)
 
@@ -1367,9 +1387,9 @@ for (t in 1:Time){  # loop over time points
         
         if (isfield(MDP,"a")){
           Comb = c(list(predictive_observations_posterior[[modality]]), Expected_states[])
-         # Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - (cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
-        }
-      } #### NEARLY CORRECT RESULT!! Weird deviation sum(EFE[2,2]+EFE[3,2])/2 = correct value in Matlab...
+          Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - sum(cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
+        } # End if isfield
+      } # End for modality
      
     } # End for horizon
   } # End for policy
@@ -1377,6 +1397,7 @@ for (t in 1:Time){  # loop over time points
   # variable
   EFE[[1]][,t] = Gintermediate
   #rm(Gintermediate)
+  
   # infer policy, update precision and calculate BMA over policies
   #----------------------------------------------------------------------
   
@@ -1387,30 +1408,34 @@ for (t in 1:Time){  # loop over time points
   # variational free energy to the posterior over policies when the 
   # difference between the prior and posterior over policies is large
   if (t>1){
-   #     gamma[[t]] = gamma[[t-1]]
+        gamma[[t]] = gamma[[t-1]]
   }
   for(ni in 1:NumIterations){
     # posterior and prior over policies:
-  #  policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]) # prior
-  #  policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,1]+VFE[[1]][,t]) # posterior
+    policy_priors[[1]][,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,t]) # prior
+    policy_posteriors[,t] = softmax(nat_log(E)+as.vector(gamma[[t]])*EFE[[1]][,t]+VFE[[1]][,t]) # posterior
     
     # Expected free energy precision (beta):
-    #    G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # with %*% scalar (correct?); 
-    #    beta_update = posterior_beta - beta + as.vector(G_error)  # free energy gradient w.r.t gamma
-    #    posterior_beta = posterior_beta - beta_update/2
-    #    gamma[[t]] = 1/posterior_beta
+    G_error = (policy_posteriors[,t] - policy_priors[[1]][,t])%*%EFE[[1]][,t] # 
+    beta_update = posterior_beta - beta + as.vector(G_error)  # free energy gradient w.r.t gamma
+    posterior_beta = posterior_beta - beta_update/2
+    gamma[[t]] = 1/posterior_beta
     
     # simulate dopamine responses
-    #  n = (t - 1)*NumIterations + ni 
+    n = (t - 1)*Ni + ni 
+    
     # dimension changes over time, therefore we initialize gamma_update
-    #   gamma_update = matrix(0,nrow=n,ncol=1)
-    #  gamma_update[[n,1]] = gamma[[t]] # simulated neural encoding of precision (posterior_beta^-1)
-    # at each iteration of variational updating
-    #  policy_posterior_updates = matrix(0,nrow=NumPolicies,ncol=n)
-    #  policy_posterior_updates[,n] = policy_posteriors[,t] # neural encoding of policy posteriors
-    #  policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
-  }
+    gamma_update[[n]] = gamma[[t]] # simulated neural encoding of precision (posterior_beta^-1)
+                                   # at each iteration of variational updating
+    policy_posterior_updates[[n]] = policy_posteriors[,t] # neural encoding of policy posteriors
+    policy_posterior[,t] = policy_posteriors[,t] # record posterior over policies 
+  } # End for ni
+  
+  
+  
 } # End for Time
 VFE
-predictive_observations_posterior
 EFE
+policy_posterior
+
+
