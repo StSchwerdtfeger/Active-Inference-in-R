@@ -30,12 +30,12 @@ Outdated:
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
-- Script now runs VFE correctly. Issue was that list objects are not always treated as double()... as.matrix() 
-  within the message passing part helped. 
-- cell_md_dot is now working correctly, but not for the second use in the script; still looking for a flexible version.
+- Got as far as policy_posterior. cell_md_dot for the Comb input needs external sum() so far (not the most elegant
+  solution, but not as bad as with B_norm() - both have to be checked for flexibility on different models based on the script
+  in the future. For the ATUT model it works so far.
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
-Jensens's inequality, Bayes' rule, Thermodynamics... Will be released in the near future along with some other stat tuts via BEM... 
+Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
 
 
 
