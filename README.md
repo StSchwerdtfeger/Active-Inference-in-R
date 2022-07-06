@@ -29,8 +29,8 @@ Outdated:
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
-- Note that the object chosen_action is modified to all ones, in order to get the loop running at this stage
-- Got as far as policy_posterior. cell_md_dot for the Comb input needs external sum() so far (not the most elegant
+- Finsihed the big loop! Appears to be fine. 
+- cell_md_dot for the Comb input needs external sum() so far (not the most elegant
   solution, but not as bad as with B_norm() - both have to be checked for flexibility on different models based on the script
   in the future. For the ATUT model it works so far.
  
