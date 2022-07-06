@@ -25,7 +25,7 @@
 Outdated:
 - OLD_ATTEMPT_2021Simplified Simuloation Script (incomplete, scruffy attempt from last year; changed to vector lists /arrays 
   which is a lot easier, but failed for b and B_norm, where the old attempt ran correct results for VFE (up to the modified .m script)
-- SimpSimScript is as further than my first attempt by now (27.06.2022)
+- SimpSimScript now further than my first attempt (27.06.2022)
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
