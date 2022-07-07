@@ -30,7 +30,8 @@ Outdated:
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Finsihed the big loop! Appears to be fine. Got to chekc G_error, as the result is rather high on average in the R script, so
-  the multiplication or softmac() function might be the issue. Will see. 
+  the multiplication or softmac() function might be the issue. Will see. Also: Only works for Gen_model = 2 so far. The issue lies
+  somewhere in the POMDP_model_structure() function.... 
 - cell_md_dot for the Comb input needs external sum() so far (not the most elegant
   solution, but not as bad as with B_norm() - both have to be checked for flexibility on different models based on the script
   in the future. For the ATUT model it works so far.
