@@ -33,8 +33,7 @@ SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Scrip
   the multiplication or softmac() function might be the issue. Will see. Also: Only works for Gen_model = 2 so far. The issue lies
   somewhere in the POMDP_model_structure() function.... 
 - cell_md_dot for the Comb input needs external sum() so far (not the most elegant
-  solution, but not as bad as with B_norm() - both have to be checked for flexibility on different models based on the script
-  in the future. For the ATUT model it works so far.
+  solution, but not as bad as with B_norm() - cell_md_dot and G_epistemic value present deviating values to some degree for Gen_model = 1. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
