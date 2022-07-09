@@ -30,7 +30,7 @@ Outdated:
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Finsihed the big loop! Appears to be fine. Only issue appears to be in G_error, related to G_epistemic_value (again...)
-- cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. 
+- cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. Still not a very professional solution for cell_md_dot.
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
