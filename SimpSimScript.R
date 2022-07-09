@@ -246,6 +246,51 @@
     return(Xout)   
   }
   
+  cell_md_dotCOMB = function(X,x, a_plain){ # Works but probably needs improvement to be more flexible
+    # NOTE: a_plain, i.e., a[[1 to 3]] needed for DIM: in Matlab a{1} still 
+    # entails information on the whole cell length, which is dropped in R
+    # when naming e.g. X = a[[1]]. 
+    
+    # Convert X to column binded version, similar to G_epistemic_value 
+    Xarr = array(as.numeric(unlist(X)), c(nrow(X[[1]]),ncol(X[[1]]),length(X)))   
+    XarrDIM = Xarr
+    # Initialize dimension
+    DIM = (1:length(x)) + length(a) - length(x)
+    
+    # Compute dot product using recursive sums
+    # To do so, we first do all the reshaping:
+    for (d in 1:length(x)){ # Re-shape
+      s = matrix(1, ndims(XarrDIM))
+      s[[DIM[[d]]]] = length(x[[d]])  
+      s[is.na(s)] = 1                   
+      # Reshape 
+      xResh = array(as.numeric(unlist(x[[d]])), c(s)) 
+      for (i in 1:length(a_plain[[1]])){ 
+        if(length(xResh[1,1,])==1){
+          Xarr[,,i] = Xarr[,,i]*as.vector(xResh)  
+        }
+        else {
+          Xarr[,,i] = Xarr[,,i]*xResh[,,i]
+        }
+      }
+      # Summing over seconda and third dimension (use sum(cell_md_dot()) for Comb 
+      if (DIM[[d]] == 1){
+        #  Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+      }
+      if (DIM[[d]] == 2){
+        Xarr = apply(Xarr, FUN=colSums, MARGIN =1)
+        Xarr = array(as.numeric(unlist(t(Xarr))), c(ncol(Xarr),1, nrow(Xarr))) 
+      }
+      else if (DIM[[d]] == 3){
+        Xarr = apply(Xarr, FUN=rowSums, MARGIN =2)# correct for dim 3
+      }
+      #  else if (DIM[[d]] == 4){
+      #
+      # }
+    }
+    return(Xarr) 
+    # return(Xarr)
+  } # End of function cell_md_dot
   
   spm_wnorm = function(X,CONV){ # Start
     if(CONV == FALSE){
@@ -1326,7 +1371,7 @@
           
           if (isfield(MDP,"a")){ # for Gen_model == 2
             Comb = c(list(predictive_observations_posterior[[modality]]), Expected_states[])
-            Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - sum(cell_md_dot(a_complexity[[modality]], Comb, a_complexity))
+            Gintermediate[[policy]] = as.numeric(Gintermediate[[policy]]) - sum(cell_md_dotCOMB(a_complexity[[modality]], Comb, a_complexity))
           } # End if isfield
         } # End for modality
        
@@ -1421,3 +1466,4 @@
     } # End if t < Time
   } # End for t in 1:Time
   
+ 
