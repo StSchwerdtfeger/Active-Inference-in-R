@@ -29,11 +29,8 @@ Outdated:
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
-- Finsihed the big loop! Appears to be fine. Got to chekc G_error, as the result is rather high on average in the R script, so
-  the multiplication or softmac() function might be the issue. Will see. Also: Only works for Gen_model = 2 so far. The issue lies
-  somewhere in the POMDP_model_structure() function.... 
-- cell_md_dot for the Comb input needs external sum() so far (not the most elegant
-  solution, but not as bad as with B_norm() - cell_md_dot and G_epistemic value present deviating values to some degree for Gen_model = 1. 
+- Finsihed the big loop! Appears to be fine. Only issue appears to be in G_error, related to G_epistemic_value (again...)
+- cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
