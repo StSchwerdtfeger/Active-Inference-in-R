@@ -39,7 +39,7 @@
   # below to 1. To do so for priors (d), likelihoods (a), and habits (e), 
   # set the 'Gen_model' variable to 2:
   
-  Gen_model = 1 # as in the main tutorial code, many parameters 
+  Gen_model = 2 # as in the main tutorial code, many parameters 
   # can be adjusted in the model setup, within the 
   # explore_exploit_model function [[starting on line 810]]
   # (Matlab code). This includes, among others (similar to 
@@ -324,10 +324,10 @@
     for(i in 1:length(X1)){
       X1arr[[i]] = array(as.numeric(unlist(X1[[i]])), dim = c(nrow(X1[[i]][[1]]),(ncol(X1[[i]][[1]])*length(X1[[i]])) ))  
     }
-    
     # probability distribution over the hidden causes: i.e., Q(s)
-    qx = outer(X2[[1]],X2[[2]], "*") # this is the outer product of the posterior over states
-                                     # calculated with respect to itself
+    qx = outer(X2[[1]],X2[[2]]) # this is the outer product of the posterior over states
+    # calculated with respect to itself
+    qx = drop(qx)
     
     # accumulate expectation of entropy: i.e., E[lnP(o|s)]
     G     = 0
@@ -335,21 +335,20 @@
     
     find = which(qx > exp(-16)) # replicates the Matlab loop
     
-    for (i in seq_along(find)){
+    for (i in find){
       # probability over outcomes for this combination of causes
-      po = c(1)
+      po = matrix(c(1))
       for (g in 1:length(X1)){
-        #po = spm_cross(po,X1arr[[g]][,i]) # X1arr needed here
-        po = as.vector(unlist(outer(po,X1arr[[g]][,i], "*"))) # X1arr needed here
+        po = drop(po)
+        po = outer(po,X1arr[[g]][,i]) # X1arr needed here
       }  
       qo = qo + qx[[i]]*po
-      G = G + qx[[i]]%*%t(as.matrix(po))%*%nat_log(po)
+      G = G + qx[[i]]*as.vector(po)%*%nat_log(po)
     }
     # subtract entropy of expectations: i.e., E[lnQ(o)]
-    G  = G - qo%*%nat_log(qo)
+    G  = G - as.vector(qo)%*%nat_log(as.numeric(unlist(qo)))
     return(G)
   } # End of function G_epistemic_value
-  
   
   ############################################
   # Set up POMDP model structure as function #
@@ -1465,5 +1464,3 @@
       
     } # End if t < Time
   } # End for t in 1:Time
-  
- 
