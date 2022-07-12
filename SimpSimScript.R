@@ -1668,3 +1668,44 @@
     # phasic_dopamine = [];
     # gamma_update = [];
   }  
+  
+  # Bayesian model average of neuronal variables; normalized firing rate and
+  # prediction error
+  #----------------------------------------------------------------------
+  for (factor in 1:NumFactors){
+    BMA_normalized_firing_rates[[factor]] = array(0,c(Ni,NumStates[[factor]],Time,Time))
+    BMA_prediction_error[[factor]] = array(0,c(Ni,NumStates[[factor]],Time,Time))
+    for (t in 1:Time){
+      for (policy in 1:NumPolicies){ 
+        # normalised firing rate
+        BMA_normalized_firing_rates[[factor]][,,1:Time,t] = BMA_normalized_firing_rates[[factor]][,,1:Time,t] + normalized_firing_rates[[factor]][[1]][,,1:Time,t,policy]*policy_posterior[[policy,t]]
+        # depolarisation
+        BMA_prediction_error[[factor]][,,1:Time,t] = BMA_prediction_error[[factor]][,,1:Time,t] + prediction_error[[factor]][[1]][,,1:Time,t,policy]*policy_posterior[[policy,t]]
+      } # End for policy
+    } # End for t
+  } # End for factor
+  
+  # store variables in MDP structure
+  #----------------------------------------------------------------------
+    
+  MDP$Time  = Time                        # number of belief updates
+  MDP$O     = O                           # outcomes
+  MDP$P     = action_posterior            # probability of action at time 1,...,T - 1
+  MDP$R     = policy_posterior            # Posterior over policies
+  MDP$Q     = state_posterior             # conditional expectations over N states
+  MDP$X     = BMA_states                  # Bayesian model averages over T outcomes
+  MDP$C     = C                           # preferences
+  MDP$G     = G                           # expected free energy
+  MDP$VFE   = VFE                         # variational free energy
+  
+  MDP$s     = true_states                 # states
+  MDP$o     = outcomes                    # outcomes
+  MDP$u     = MDP$chosen_action           # actions
+  
+  MDP$w     = gamma                       # posterior expectations of expected free energy precision (gamma)
+  MDP$vn    = BMA_prediction_error        # simulated neuronal prediction error
+  MDP$xn    = BMA_normalized_firing_rates # simulated neuronal encoding of hidden states
+  MDP$un    = policy_posterior_updates    # simulated neuronal encoding of policies
+  MDP$wn    = gamma_update                # simulated neuronal encoding of policy precision (beta)
+  MDP$dn    = phasic_dopamine             # simulated dopamine responses (deconvolved)
+  
