@@ -29,7 +29,7 @@ Outdated:
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
-- Script is nearly finish! 
+- Script is done!! Just plotting is missing (spm plotting routines). I have replicated some of them in other scripts - hope it wont be to tough. 
 - cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. Still not a very professional solution for cell_md_dot.
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
