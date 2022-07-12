@@ -19,13 +19,7 @@
 - Prediction Error Example
 - Message Passing Example
 - EFE Precision Updating Example 
-- SimpSimScript.R (incomplete, second attempt 2022; now further than first attempt...)
-- Replication2022.m corresponding Matlab script (goes as far as the SimpSimScript for comparison). 
-
-Outdated:
-- OLD_ATTEMPT_2021Simplified Simuloation Script (incomplete, scruffy attempt from last year; changed to vector lists /arrays 
-  which is a lot easier, but failed for b and B_norm, where the old attempt ran correct results for VFE (up to the modified .m script)
-- SimpSimScript now further than my first attempt (27.06.2022)
+- SimpSimScript.R (completed, except of spm plotting routines)
 
 # Next:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
