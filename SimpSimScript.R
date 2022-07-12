@@ -351,6 +351,7 @@
       return(G)
     } # End of function G_epistemic_value
     
+    
     spm_betaln = function(x){
       if (is.list(x)==FALSE){
         find=which(x!=0)
@@ -377,57 +378,85 @@
     
     spm_psi = function(x){
       # normalization of a probability transition rate matrix (columns)
-      # Set x as pre-dim list:
-      x1=x
-      xout=list()
-      for(i in 1:length(x)){
-        for(j in 1:nrow(x[[1]])){
-          for(k in 1:ncol(x[[1]])){
-            x1[[i]][j,k] = psigamma(x[[i]][j,k])
-          } # End for k
-        } # End for j
-      } # End for i
-      x2 = lapply(x,colSums)
-      x2 = lapply(x2, psigamma)
-      for(n in 1:length(x2)){
-        xout[[n]] = t(t(x1[[n]])-as.vector(x2[[n]]))
-      } # End for m
+      
+      # for single matrix input:
+      if(is.matrix(x)){
+        x1=x
+        xout=x
+        for(i in 1:length(x)){
+          x1[[i]] = psigamma(x[[i]])
+        }
+        x2 = sum(x)
+        x2 = psigamma(x2)
+        for(j in 1:length(x)){
+          xout[j] = x1[[j]]-x2
+        }
+        return(xout)
+      }
+      else{
+        # Set x as pre-dim list:
+        x1=x
+        xout=list()
+        for(i in 1:length(x)){
+          for(j in 1:nrow(x[[1]])){
+            for(k in 1:ncol(x[[1]])){
+              x1[[i]][j,k] = psigamma(x[[i]][j,k])
+            } # End for k
+          } # End for j
+        } # End for i
+        x2 = lapply(x,colSums)
+        x2 = lapply(x2, psigamma)
+        for(n in 1:length(x2)){
+          xout[[n]] = t(t(x1[[n]])-as.vector(x2[[n]]))
+        } # End for m
+      }
       return(xout)
-    }
+    } # End of function
+    
     
     spm_KL_dir = function(q,p){
       # KL divergence between two Dirichlet distributions
       # Matlab formula similar to:  d = spm_betaln(p) - spm_betaln(q) - colSums((p - q).*spm_psi(q + 1/32))
       # Does not work in one row in R with lists. 
-      pMinq = list()
-      for(i in 1:length(p)){
-        pMinq[[i]] = p[[i]]-q[[i]]    
-      }
-      qPlus = list()
-      for(i in 1:length(q)){
-        qPlus[[i]] = q[[i]] + as.numeric(1/32)
-      }
-      qPlus=lapply(q,"+",as.numeric(1/32))
       # Element wise multiplication:
       Add = q # just for dimensional purposes
-      for(i in 1:length(pMinq)){
-        for(k in 1:nrow(pMinq[[1]])){
-          for(j in 1:ncol(pMinq[[1]])){
-            Add[[i]][[k,j]] = as.numeric(pMinq[[i]][[k,j]]*spm_psi(qPlus)[[i]][[k,j]])
+      if(is.matrix(q)==FALSE){
+        pMinq = list()
+        for(i in 1:length(p)){
+          pMinq[[i]] = p[[i]]-q[[i]]    
+        }
+        qPlus = list()
+        for(i in 1:length(q)){
+          qPlus[[i]] = q[[i]] + as.numeric(1/32)
+        }
+        for(i in 1:length(pMinq)){
+          for(k in 1:nrow(pMinq[[1]])){
+            for(j in 1:ncol(pMinq[[1]])){
+              Add[[i]][[k,j]] = as.numeric(pMinq[[i]][[k,j]]*spm_psi(qPlus)[[i]][[k,j]])
+            }
           }
         }
+        Add=lapply(Add,colSums)
+        d =list()
+        for(i in 1:length(spm_betaln(p)[1,1,])){
+          d[[i]] = spm_betaln(p)[,,i] - spm_betaln(q)[,,i] - Add[[i]]
+        }
+        d = sum(unlist(d))
+        return(d)
       }
-      Add=lapply(Add,colSums)
-      
-      d =list()
-      for(i in 1:length(spm_betaln(p)[1,1,])){
-        d[[i]] = spm_betaln(p)[,,i] - spm_betaln(q)[,,i] - Add[[i]]
+      else if(is.matrix(q)){
+        qPlus = q
+        qPlus = q + as.numeric(1/32)
+        pMinq = p-q 
+        Add = q
+        Add = pMinq*spm_psi(qPlus)
+        Add = sum(Add)
+        
+        d = list()
+        d = spm_betaln(p) - spm_betaln(q) - Add
+        return(d)
       }
-      d = sum(unlist(d))
-      return(d)
-    }
-    
-    
+    } # End of function KL dir
     
     ############################################
     # Set up POMDP model structure as function #
@@ -1256,6 +1285,10 @@
     # Normalized firing rates is simply obtained by:
     normalized_firing_rates = prediction_error
     
+    # Baysian model average lists:
+    BMA_normalized_firing_rates = list()
+    BMA_prediction_error = list()
+    
     # Predictive_observations_posterior
     predictive_observations_posterior = list()
     
@@ -1609,7 +1642,7 @@
     } # End for isfield
   } # End for modality
 
-                   # (negative) free energy of d
+  # (negative) free energy of d
   MDP$Fd = matrix(0, c(NumFactors))
   for (factor in 1:NumFactors){
     if (isfield(MDP,'d')){
@@ -1617,5 +1650,21 @@
     } # End for isfield
   } # End for modality
     
-  # spm_KL_dir needs slight adjustment for single vector inputs... 
-    
+  # (negative) free energy of e
+  if (isfield(MDP,'e')){
+    MDP$Fe = -(spm_KL_dir(MDP$e, E)) # check spm_KL_dir for single inputs (or change to array or something)
+  } # End for isfield
+  
+  
+  # simulated dopamine responses (beta updates)
+  #----------------------------------------------------------------------
+  
+  # "deconvolution" of neural encoding of precision
+  if (NumPolicies > 1){
+    gradinter = 8*unlist(gradient(unlist(gamma_update)))
+    gammadiv = unlist(gamma_update)/8
+    phasic_dopamine = gradinter + gammadiv
+  }else{ # Matlab lines are:
+    # phasic_dopamine = [];
+    # gamma_update = [];
+  }  
