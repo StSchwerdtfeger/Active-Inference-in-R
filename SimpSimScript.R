@@ -54,9 +54,8 @@
     # Libraries #
     #############
     
-    library("pracma") # problay necessary for imagesc() etc.
+    library("pracma")     # necessary for imagesc(), psi()
     library("logOfGamma") # for gammaln()
-
     
     #############
     # Functions # 
@@ -351,6 +350,84 @@
       G  = G - as.vector(qo)%*%nat_log(as.numeric(unlist(qo)))
       return(G)
     } # End of function G_epistemic_value
+    
+    spm_betaln = function(x){
+      if (is.list(x)==FALSE){
+        find=which(x!=0)
+        l = list()
+        for (k in 1:length(find)){
+          l[[k]] = x[find[[k]]]
+        } # End for k
+        z = as.numeric(unlist(l))
+        yinter = gammaln(z)
+        yinter[yinter == "NaN"] = 0
+        y = sum(as.numeric(yinter)) - gammaln(sum(z))
+      } # End if is.list
+      else{
+        xarr = array(as.numeric(unlist(x)), c(nrow(x[[1]]), ncol(x[[1]]), length(x)))
+        y = array(0, c(1, ncol(x[[1]]), length(x)))
+        for (i in 1:length(x[[1]][1,])){
+          for (j in 1:length(x)){
+            y[[1,i,j]] = spm_betaln(as.vector(xarr[,i,j]))
+          } # End for j
+        } # End for i
+      } # End else
+      return(y)
+    } # End of function spm_betaln
+    
+    spm_psi = function(x){
+      # normalization of a probability transition rate matrix (columns)
+      # Set x as pre-dim list:
+      x1=x
+      xout=list()
+      for(i in 1:length(x)){
+        for(j in 1:nrow(x[[1]])){
+          for(k in 1:ncol(x[[1]])){
+            x1[[i]][j,k] = psigamma(x[[i]][j,k])
+          } # End for k
+        } # End for j
+      } # End for i
+      x2 = lapply(x,colSums)
+      x2 = lapply(x2, psigamma)
+      for(n in 1:length(x2)){
+        xout[[n]] = t(t(x1[[n]])-as.vector(x2[[n]]))
+      } # End for m
+      return(xout)
+    }
+    
+    spm_KL_dir = function(q,p){
+      # KL divergence between two Dirichlet distributions
+      # Matlab formula similar to:  d = spm_betaln(p) - spm_betaln(q) - colSums((p - q).*spm_psi(q + 1/32))
+      # Does not work in one row in R with lists. 
+      pMinq = list()
+      for(i in 1:length(p)){
+        pMinq[[i]] = p[[i]]-q[[i]]    
+      }
+      qPlus = list()
+      for(i in 1:length(q)){
+        qPlus[[i]] = q[[i]] + as.numeric(1/32)
+      }
+      qPlus=lapply(q,"+",as.numeric(1/32))
+      # Element wise multiplication:
+      Add = q # just for dimensional purposes
+      for(i in 1:length(pMinq)){
+        for(k in 1:nrow(pMinq[[1]])){
+          for(j in 1:ncol(pMinq[[1]])){
+            Add[[i]][[k,j]] = as.numeric(pMinq[[i]][[k,j]]*spm_psi(qPlus)[[i]][[k,j]])
+          }
+        }
+      }
+      Add=lapply(Add,colSums)
+      
+      d =list()
+      for(i in 1:length(spm_betaln(p)[1,1,])){
+        d[[i]] = spm_betaln(p)[,,i] - spm_betaln(q)[,,i] - Add[[i]]
+      }
+      d = sum(unlist(d))
+      return(d)
+    }
+    
+    
     
     ############################################
     # Set up POMDP model structure as function #
@@ -1174,7 +1251,7 @@
     # prediction_error[[factor]][[1]][Ni,nrow(state_posterior[[factor]][[1]]),tau,t,policiy]
     prediction_error = list()
     for(factor in 1:NumFactors){
-      prediction_error[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]), Time, Time,NumPolicies)))))
+      prediction_error[[factor]] <- c(rep(list(array(0, c(NumIterations,nrow(state_posterior[[factor]][[1]]),Time,Time,NumPolicies)))))
     }
     # Normalized firing rates is simply obtained by:
     normalized_firing_rates = prediction_error
@@ -1473,6 +1550,7 @@
     # Set up list for a_learning:
     a_learning = list()
       
+    
     for(t in 1:Time){
       # a matrix (likelihood)
       if(isfield(MDP, "a")){
@@ -1482,12 +1560,13 @@
             a_learning = drop(outer(a_learning,as.matrix(BMA_states[[factor]][,t])))
           } # End for factor
           for (i in 1:length(a_learning[1,1,])){ 
-             a_learning[,,i] = a_learning[,,i]*(GreaterZero(MDP$a[[modality]])[[i]])
+            a_learning[,,i] = a_learning[,,i]*(GreaterZero(MDP$a[[modality]])[[i]])
           } # End for i
           Add1 = lapply(MDP$a[[modality]],"*",omega)
           Add2 = a_learning*drop(eta)
-          for (i in 1:length(Add1)){
-            MDP$a[[modality]][[i]] = Add1[[i]] + Add2[,,i]
+          
+          for (j in 1:length(Add1)){
+            MDP$a[[modality]][[j]] = Add1[[j]] + Add2[,,j]
           } # End for i
         } # End for modality
       } # End if isfield
@@ -1525,43 +1604,18 @@
   # (negative) free energy of a
   MDP$Fa = matrix(0, c(NumModalities))
   for (modality in 1:NumModalities){
-    if isfield(MDP,'a'){
-      MDP$Fa[modality] #= - spm_KL_dir(MDP.a{modality},a_prior{modality});
+    if (isfield(MDP,'a')){
+      MDP$Fa[modality] = -(spm_KL_dir(MDP$a[[modality]], a_prior[[modality]]))
     } # End for isfield
   } # End for modality
 
+                   # (negative) free energy of d
+  MDP$Fd = matrix(0, c(NumFactors))
+  for (factor in 1:NumFactors){
+    if (isfield(MDP,'d')){
+      MDP$Fd[factor] = -(spm_KL_dir(MDP$d[[factor]], d_prior[[factor]]))
+    } # End for isfield
+  } # End for modality
     
-  spm_betaln = function(x){
-    if (is.list(x)==FALSE){
-      find=which(x>0)
-      l = list()
-      for (k in 1:length(find)){
-        l[[k]] = x[find[[k]]]
-      } # End for k
-      z = as.numeric(unlist(l))
-      yinter = gammaln(z)
-      yinter[yinter == "NaN"] = 0
-     #yinter = lapply(yinter, function(x) {x[x!=NaN]})
-      y = sum(yinter) - gammaln(sum(z))
-    } # End if is.list
-    else{
-      xarr = array(as.numeric(unlist(x)), c(nrow(x[[1]]), ncol(x[[1]]), length(x)))
-      y = array(0, c(1, ncol(x[[1]]), length(x)))
-      for (i in 1:length(x[[1]][1,])){
-        for (j in 1:length(x)){
-          y[[1,i,j]] = spm_betaln(as.vector(xarr[,i,j]))
-        } # End for j
-      } # End for i
-     # return(xarr)
-    } # End else
-    return(y)
-  } # End of function spm_betaln
-  
-  
-  spm_psi = function(x){
-    # normalization of a probability transition rate matrix (columns)
-    for(i in 1:length(x)){
-      x[[i]] =  psi(x[[i]])- psi(colSums(x[[i]],1))
-    }
-    return(x)
-  }
+  # spm_KL_dir needs slight adjustment for single vector inputs... 
+    
