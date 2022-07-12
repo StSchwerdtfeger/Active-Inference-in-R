@@ -31,6 +31,7 @@ Outdated:
 SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Script.m 
 - Script is done!! Just plotting is missing (spm plotting routines). I have replicated some of them in other scripts - hope it wont be to tough. 
 - cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. Still not a very professional solution for cell_md_dot.
+- The functions B_norm, spm_KL_dir also need some improvement, to be flexible for other POMDP inputs. 
  
 Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
