@@ -54,7 +54,9 @@
     # Libraries #
     #############
     
-    library(pracma) # problay necessary for imagesc() etc.
+    library("pracma") # problay necessary for imagesc() etc.
+    library("logOfGamma") # for gammaln()
+
     
     #############
     # Functions # 
@@ -1537,19 +1539,29 @@
         l[[k]] = x[find[[k]]]
       } # End for k
       z = as.numeric(unlist(l))
-      #yinter = log(gamma(z))
-      #yinter = lapply(yinter, function(x) {x[x!=NaN]})
-      y = sum(log(gamma(z))) - log(gamma(sum(z)))
+      yinter = gammaln(z)
+      yinter[yinter == "NaN"] = 0
+     #yinter = lapply(yinter, function(x) {x[x!=NaN]})
+      y = sum(yinter) - gammaln(sum(z))
     } # End if is.list
     else{
       xarr = array(as.numeric(unlist(x)), c(nrow(x[[1]]), ncol(x[[1]]), length(x)))
-      y = array(as.numeric(unlist(x)), c(1, ncol(x[[1]]), length(x)))
+      y = array(0, c(1, ncol(x[[1]]), length(x)))
       for (i in 1:length(x[[1]][1,])){
         for (j in 1:length(x)){
           y[[1,i,j]] = spm_betaln(as.vector(xarr[,i,j]))
         } # End for j
       } # End for i
+     # return(xarr)
     } # End else
     return(y)
   } # End of function spm_betaln
   
+  
+  spm_psi = function(x){
+    # normalization of a probability transition rate matrix (columns)
+    for(i in 1:length(x)){
+      x[[i]] =  psi(x[[i]])- psi(colSums(x[[i]],1))
+    }
+    return(x)
+  }
