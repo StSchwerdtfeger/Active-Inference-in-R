@@ -4,7 +4,7 @@
     #-----------------------------------#
     #####################################
     
-    # Supplementary Code for: A Step-by-Step Tutorial on Active Inference 
+    # Conversion of the Supplementary Code for: A Step-by-Step Tutorial on Active Inference 
     # Modelling and its Application to Empirical Data
     
     # By: Ryan Smith, Karl J. Friston, Christopher J. Whyte
@@ -41,20 +41,20 @@
     
     Gen_model = 2 # as in the main tutorial code, many parameters 
     # can be adjusted in the model setup, within the 
-    # explore_exploit_model function [[starting on line 810]]
+    # explore_exploit_model function [[starting on line 450]]
     # (Matlab code). This includes, among others (similar to 
     # in the main tutorial script):
     
-    # prior beliefs about context (d): alter line 876
-    # beliefs about hint accuracy in the likelihood (a): alter lines 996-998
-    # to adjust habits (e), alter line 1155
+    # prior beliefs about context (d): alter line 525f
+    # beliefs about hint accuracy in the likelihood (a): alter lines 685f
+    # to adjust habits (e), alter line 900f
     
     
     #############
     # Libraries #
     #############
     
-    library("pracma")     # necessary for imagesc(), psi()
+    library("pracma")     # necessary for imagesc()
     library("logOfGamma") # for gammaln()
     
     #############
@@ -200,17 +200,6 @@
         z = y+x 
       }
       return(z)
-    }
-    
-    # Modified  reshape function, obtained from getAnywhere(reshape), given package pracma
-    reshapePRACmod = function (a, n, m){  # modified reshape (ADD array option)
-      n = n[[1]]; m = m[[1]];
-      if (missing(m)) 
-        m <- length(a)%/%n
-      if (length(a) != n * m) 
-        stop("Matrix 'a' does not have n*m elements")
-      dim(a) <- c(n, m)
-      return(a)
     }
     
     
@@ -437,7 +426,7 @@
           }
         }
         Add=lapply(Add,colSums)
-        d =list()
+        d = list()
         for(i in 1:length(spm_betaln(p)[1,1,])){
           d[[i]] = spm_betaln(p)[,,i] - spm_betaln(q)[,,i] - Add[[i]]
         }
@@ -457,6 +446,7 @@
         return(d)
       }
     } # End of function KL dir
+    
     
     ############################################
     # Set up POMDP model structure as function #
@@ -1018,7 +1008,7 @@
     ############################
     
     MDP = POMDP_model_structure(Gen_model)
-    MDP$a
+
     # Model specification is reproduced at the bottom of this script 
     # (starting on line 810), but see main tutorial script for more 
     # complete walk-through
@@ -1405,12 +1395,12 @@
                 lnD  = nat_log(as.matrix(b[[factor,V[[factor]][tau-1,policy]]])%*%as.matrix(state_posterior[[factor]][[policy]][,tau-1]))  
                 # Backward message:
                 lnBs = matrix(0, nrow = nrow(d[[factor]][[1]]), ncol = ncol(d[[factor]][[1]]), byrow = TRUE)
-              }
-              else{ #} if (1 < tau & tau < Time){ # just else { } is enough too
+              } # End else if
+              else{ 
                 # foward message
                 lnD  = nat_log(b[[factor,V[[factor]][tau-1,policy]]]%*%(as.matrix(state_posterior[[factor]][[policy]][,tau-1])))  
                 lnBs = nat_log(t(B_norm(b[[factor,V[[factor]][tau,policy]]]))%*%as.vector(state_posterior[[factor]][[policy]][,tau+1]))
-              }
+              } # End else
               
               # here we both combine the messages and perform a gradient
               # descent on the posterior.
@@ -1425,8 +1415,6 @@
               # store v (non-normalized log posterior or 'membrane potential') 
               # from each epoch of gradient descent for each tau
               prediction_error[[factor]][[1]][Ni,,tau,t,policy] = as.vector(v_depolarization)
-              #CLEAR V necessary?
-              #clear(lst)
             } # End loop tau
           } # End loop factor
         } # End loop Ni
@@ -1573,9 +1561,8 @@
             chosen_action[[factors,t]] = action[[ind]]
           } # End if >2
         } # End for factors
-        
       } # End if t < Time
-    } # End for t in 1:Time
+    } # End for t in 1:Time  #### #### #### #### #### #### ####
     
     
     # accumulate concentration paramaters (learning)
@@ -1583,7 +1570,6 @@
     # Set up list for a_learning:
     a_learning = list()
       
-    
     for(t in 1:Time){
       # a matrix (likelihood)
       if(isfield(MDP, "a")){
@@ -1695,7 +1681,7 @@
   MDP$Q     = state_posterior             # conditional expectations over N states
   MDP$X     = BMA_states                  # Bayesian model averages over T outcomes
   MDP$C     = C                           # preferences
-  MDP$G     = G                           # expected free energy
+  MDP$EFE   = EFE                         # expected free energy
   MDP$VFE   = VFE                         # variational free energy
   
   MDP$s     = true_states                 # states
@@ -1708,4 +1694,5 @@
   MDP$un    = policy_posterior_updates    # simulated neuronal encoding of policies
   MDP$wn    = gamma_update                # simulated neuronal encoding of policy precision (beta)
   MDP$dn    = phasic_dopamine             # simulated dopamine responses (deconvolved)
+  
   
