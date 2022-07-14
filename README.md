@@ -27,7 +27,13 @@ SimpSimScript is my second attempt to replicate the Simpliefied_Simulation_Scrip
 - cell_md_dot for the Comb input needs external sum(), but works for Gen_model=1 and 2. Still not a very professional solution for cell_md_dot.
 - The functions B_norm, spm_KL_dir also need some improvement, to be flexible for other POMDP inputs. 
  
-Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
+I will try to dig into scripts such as spm_VB_X and look into the way it was carried out in the pymdp package (and will go through the great ActInf Lab Sessions 
+on the ATUT material). The learning curve might be a bit steep again, but I will definitly give it a shot right after I finished the plotting of the SimpSimScript, 
+as it is also a great opportunity to learn about structuring and writing packages with generalized and flexible functions and intuitive handling (interface
+qualities). The pymdp approach also appears to avoid too much code complexity all at once and may be easier to achieve (also refers to recommendations I got when 
+translating the SimpSimScript). I will see.  
+
+In work: Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
 Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
 
 
