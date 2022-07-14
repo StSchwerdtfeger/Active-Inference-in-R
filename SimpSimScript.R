@@ -402,7 +402,6 @@
       return(xout)
     } # End of function
     
-    
     spm_KL_dir = function(q,p){
       # KL divergence between two Dirichlet distributions
       # Matlab formula similar to:  d = spm_betaln(p) - spm_betaln(q) - colSums((p - q).*spm_psi(q + 1/32))
@@ -445,6 +444,14 @@
         d = spm_betaln(p) - spm_betaln(q) - Add
         return(d)
       }
+      p  = rand(6,1) + 1
+      q  = rand(6,1) + p
+      q0 = sum(p)
+      p0 = sum(q)
+      KL = spm_betaln(p) - spm_betaln(q) + d*spm_psi(q)
+      klinter = gammaln(q0) - sum(gammaln(q)) - gammaln(p0) + sum(gammaln(p))  
+      klinter2 =  d*as.numeric(unlist(lapply(spm_psi(q),"-",spm_psi(as.matrix(q0)))))
+      kl = klinter + klinter 
     } # End of function KL dir
     
     
@@ -1696,3 +1703,12 @@
   MDP$dn    = phasic_dopamine             # simulated dopamine responses (deconvolved)
   
   
+
+  
+  
+  
+  
+  
+  
+    
+    
