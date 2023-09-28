@@ -33,8 +33,7 @@ as it is also a great opportunity to learn about structuring and writing package
 qualities). The pymdp approach also appears to avoid too much code complexity all at once and may be easier to achieve (also refers to recommendations I got when 
 translating the SimpSimScript). I will see.  
 
-In work: Very basic Active inference Tutorial is completed, just going through some Math from Shannon's paper "A mathematical theory of communication", 
-Jensens's inequality, Bayes' rule, Thermodynamics and some Semiotics/Linguistics... Will be released in the near future along with some other stat tuts via BEM... 
+# Tutorial for some basic math/physics (information theory) of active inference finished: https://journal.medicine.berlinexchange.de/pub/bi7ccdsa 
 
 
 
